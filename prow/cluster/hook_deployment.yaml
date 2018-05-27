@@ -37,15 +37,15 @@ spec:
         imagePullPolicy: Always
         args:
         - --dry-run=false
-        - --slack-token-file=/etc/slack/token
-        - --github-endpoint=http://ghproxy
-        - --github-endpoint=https://api.github.com
+        # - --slack-token-file=/etc/slack/token
+        # - --github-endpoint=http://ghproxy
+        # - --github-endpoint=https://api.github.com
         ports:
           - name: http
             containerPort: 8888
         volumeMounts:
-        - name: slack
-          mountPath: /etc/slack
+        # - name: slack
+        #   mountPath: /etc/slack
         - name: hmac
           mountPath: /etc/webhook
           readOnly: true
@@ -58,13 +58,13 @@ spec:
         - name: plugins
           mountPath: /etc/plugins
           readOnly: true
-        - name: cat-api
-          mountPath: /etc/cat-api
-          readOnly: true
+        # - name: cat-api
+        #   mountPath: /etc/cat-api
+        #   readOnly: true
       volumes:
-      - name: slack
-        secret:
-          secretName: slack-token
+      # - name: slack
+      #   secret:
+      #     secretName: slack-token
       - name: hmac
         secret:
           secretName: hmac-token
@@ -77,6 +77,6 @@ spec:
       - name: plugins
         configMap:
           name: plugins
-      - name: cat-api
-        configMap:
-          name: cat-api-key
+      # - name: cat-api
+      #   configMap:
+      #     name: cat-api-key

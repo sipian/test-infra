@@ -49,4 +49,5 @@ import (
 	_ "k8s.io/test-infra/prow/plugins/updateconfig"
 	_ "k8s.io/test-infra/prow/plugins/wip"
 	_ "k8s.io/test-infra/prow/plugins/yuks"
+//	_ "k8s.io/test-infra/prow/plugins/benchmark"
 )

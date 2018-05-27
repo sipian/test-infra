@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM gcr.io/k8s-prow/alpine:0.1
+FROM docker.io/sipian/alpine:0.1
 LABEL maintainer="skuznets@redhat.com"
 
 COPY artifact-uploader /artifact-uploader

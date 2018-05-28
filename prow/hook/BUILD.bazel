@@ -65,6 +65,7 @@ go_library(
         "//prow/plugins/updateconfig:go_default_library",
         "//prow/plugins/wip:go_default_library",
         "//prow/plugins/yuks:go_default_library",
+        "//prow/plugins/benchmark:go_default_library",
         "//vendor/github.com/prometheus/client_golang/prometheus:go_default_library",
         "//vendor/github.com/sirupsen/logrus:go_default_library",
     ],

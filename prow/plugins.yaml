@@ -1,3 +1,3 @@
 plugins:
-  YOUR_ORG/YOUR_REPO:
+  sipian/prometheus:
   - benchmark

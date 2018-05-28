@@ -80,6 +80,8 @@ func handleGenericComment(pc plugins.PluginClient, e github.GenericCommentEvent)
 
 func handle(gc githubClient, config *plugins.Configuration, ownersClient repoowners.Interface, log *logrus.Entry, e *github.GenericCommentEvent) error {
 	// Only consider open PRs and new comments.
+
+	log.Debugf("inside benchmark handle")
 	if !e.IsPR || e.IssueState != "open" || e.Action != github.GenericCommentActionCreated {
 		return nil
 	}
@@ -88,10 +90,13 @@ func handle(gc githubClient, config *plugins.Configuration, ownersClient repoown
 	// If we create a "/benchmark cancel" comment, remove benchmark if necessary.
 	wantBenchmark := false
 	if benchmarkRe.MatchString(e.Body) {
+		log.Debugf("\\benchmark :: pr|release matched")
 		wantBenchmark = true
 	} else if benchmarkCancelRe.MatchString(e.Body) {
+		log.Debugf("\\benchmark :: cancel matched")
 		wantBenchmark = false
 	} else {
+		log.Debugf("\\benchmark :: none matched")
 		return nil
 	}
 
@@ -123,10 +128,10 @@ func handle(gc githubClient, config *plugins.Configuration, ownersClient repoown
 		}
 	}
 	if hasBenchmarkLabel && !wantBenchmark {
-		log.Info("Removing Benchmark label.")
+		log.Infof("Removing Benchmark label.")
 		return gc.RemoveLabel(org, repo, e.Number, benchmarkLabel)
 	} else if !hasBenchmarkLabel && wantBenchmark {
-		log.Info("Adding Benchmark label.")
+		log.Infof("Adding Benchmark label.")
 		if err := gc.AddLabel(org, repo, e.Number, benchmarkLabel); err != nil {
 			return err
 		}

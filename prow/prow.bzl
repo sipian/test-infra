@@ -21,8 +21,6 @@ load(
 
 MULTI_KIND = None
 
-STABLE_PROW_CLUSTER = "docker.io/sipian"
-
 
 CORE_CLUSTER = "{STABLE_PROW_CLUSTER}"  # For components like hook
 

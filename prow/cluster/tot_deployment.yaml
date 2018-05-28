@@ -57,7 +57,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: tot
-        image: docker.io/sipian/tot:v20180521-f8caf9625
+        image: gcr.io/k8s-prow/tot:v20180521-f8caf9625
         imagePullPolicy: Always
         args:
         - -storage=/store/tot.json

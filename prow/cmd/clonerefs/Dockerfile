@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM docker.io/sipian/git:0.2
+FROM gcr.io/k8s-prow/git:0.2
 LABEL maintainer="skuznets@redhat.com"
 
 COPY clonerefs /clonerefs

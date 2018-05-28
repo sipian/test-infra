@@ -120,6 +120,11 @@ hook-deployment: get-cluster-credentials
 hook-service: get-cluster-credentials
 	kubectl apply -f cluster/hook_service.yaml
 
+bump:
+	./bump.sh hook
+
+prometheus: bump hook-image hook-deployment
+
 .PHONY: hook-image hook-deployment hook-service
 
 sinker-image: alpine-image

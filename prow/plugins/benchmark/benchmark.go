@@ -57,7 +57,7 @@ func helpProvider(config *plugins.Configuration, enabledRepos []string) (*plugin
 		Usage:       "/benchmark [release|pr]",
 		Description: "Starts prometheus benchmarking tool. With `release` current master will be compared with previous release. With `pr`, PR will be compared with current master.",
 		Featured:    true,
-		WhoCanUse:   "Members whose Github handle is present in OWNER file can start & cancel benchmarking.",
+		WhoCanUse:   "Members whose Github handle is present in OWNER file.",
 		Examples:    []string{"/benchmark release", "/benchmark pr", "/benchmark cancel"},
 	})
 	return pluginHelp, nil

@@ -64,7 +64,7 @@ fi
 echo -e "$(color-image ${images[@]})" >&2
 
 echo -e "Pushing $(color-version ${new_version}) via $(color-target //prow:release-push --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64) ..." >&2
-bazel run //prow:release-push --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64
+#bazel run //prow:release-push --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64
 
 echo -e "Bumping: $(color-image ${images[@]}) to $(color-version ${new_version}) ..." >&2
 

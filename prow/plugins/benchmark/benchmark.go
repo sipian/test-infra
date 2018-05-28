@@ -19,6 +19,7 @@ package benchmark
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -36,6 +37,8 @@ var (
 	benchmarkRe              = regexp.MustCompile(`(?mi)^/benchmark\s+(release|pr)\s*$`)
 	benchmarkCancelRe        = regexp.MustCompile(`(?mi)^/benchmark\s+cancel\s*$`)
 	removeBenchmarkLabelNoti = "New changes are detected. Benchmarking will be stopped."
+	benchmarkReleaseNoti     = "Starting benchmarking current master with previous release. Status can be seen at http://COMING-SOON"
+	benchmarkPRNoti          = "Starting benchmarking PR with current master. Status can be seen at http://COMING-SOON"
 )
 
 func init() {
@@ -81,7 +84,6 @@ func handleGenericComment(pc plugins.PluginClient, e github.GenericCommentEvent)
 func handle(gc githubClient, config *plugins.Configuration, ownersClient repoowners.Interface, log *logrus.Entry, e *github.GenericCommentEvent) error {
 	// Only consider open PRs and new comments.
 
-	log.Debugf("inside benchmark handle")
 	if !e.IsPR || e.IssueState != "open" || e.Action != github.GenericCommentActionCreated {
 		return nil
 	}
@@ -90,14 +92,15 @@ func handle(gc githubClient, config *plugins.Configuration, ownersClient repoown
 	// If we create a "/benchmark cancel" comment, remove benchmark if necessary.
 	wantBenchmark := false
 	if benchmarkRe.MatchString(e.Body) {
-		log.Debugf("\\benchmark :: pr|release matched")
 		wantBenchmark = true
 	} else if benchmarkCancelRe.MatchString(e.Body) {
-		log.Debugf("\\benchmark :: cancel matched")
 		wantBenchmark = false
 	} else {
-		log.Debugf("\\benchmark :: none matched")
 		return nil
+	}
+	benchmarkOption := "pr"
+	if strings.Contains(e.Body, "release") {
+		benchmarkOption = "release"
 	}
 
 	org := e.Repo.Owner.Login
@@ -131,6 +134,11 @@ func handle(gc githubClient, config *plugins.Configuration, ownersClient repoown
 		log.Infof("Removing Benchmark label.")
 		return gc.RemoveLabel(org, repo, e.Number, benchmarkLabel)
 	} else if !hasBenchmarkLabel && wantBenchmark {
+		resp := benchmarkPRNoti
+		if benchmarkOption == "release" {
+			resp = benchmarkReleaseNoti		
+		}
+		gc.CreateComment(org, repo, e.Number, plugins.FormatResponseRaw(e.Body, e.HTMLURL, commentAuthor, resp))
 		log.Infof("Adding Benchmark label.")
 		if err := gc.AddLabel(org, repo, e.Number, benchmarkLabel); err != nil {
 			return err
@@ -145,7 +153,7 @@ func handle(gc githubClient, config *plugins.Configuration, ownersClient repoown
 			log.WithError(err).Errorf("Failed to get the list of issue comments on %s/%s#%d.", org, repo, e.Number)
 		}
 		for _, comment := range comments {
-			if comment.User.Login == botname && comment.Body == removeBenchmarkLabelNoti {
+			if comment.User.Login == botname && (comment.Body == removeBenchmarkLabelNoti || comment.Body == benchmarkReleaseNoti || comment.Body == benchmarkPRNoti) {
 				if err := gc.DeleteComment(org, repo, comment.ID); err != nil {
 					log.WithError(err).Errorf("Failed to delete comment from %s/%s#%d, ID:%d.", org, repo, e.Number, comment.ID)
 				}

@@ -84,8 +84,8 @@ func handle(gc githubClient, config *plugins.Configuration, ownersClient repoown
 		return nil
 	}
 
-	// If we create an "/benchmark" comment, add lgtm if necessary.
-	// If we create a "/benchmark cancel" comment, remove lgtm if necessary.
+	// If we create an "/benchmark" comment, add benchmark if necessary.
+	// If we create a "/benchmark cancel" comment, remove benchmark if necessary.
 	wantBenchmark := false
 	if benchmarkRe.MatchString(e.Body) {
 		wantBenchmark = true
@@ -173,15 +173,15 @@ func handlePullRequest(gc ghLabelClient, pe github.PullRequestEvent, log *logrus
 	var labelNotFound bool
 	if err := gc.RemoveLabel(org, repo, number, benchmarkLabel); err != nil {
 		if _, labelNotFound = err.(*github.LabelNotFound); !labelNotFound {
-			return fmt.Errorf("failed removing lgtm label: %v", err)
+			return fmt.Errorf("failed removing benchmark label: %v", err)
 		}
 
 		// If the error is indeed *github.LabelNotFound, consider it a success.
 	}
-	// Creates a comment to inform participants that LGTM label is removed due to new
+	// Creates a comment to inform participants that benchmark label is removed due to new
 	// pull request changes.
 	if !labelNotFound {
-		log.Infof("Create a LGTM removed notification to %s/%s#%d  with a message: %s", org, repo, number, removeBenchmarkLabelNoti)
+		log.Infof("Create a benchmark removed notification to %s/%s#%d  with a message: %s", org, repo, number, removeBenchmarkLabelNoti)
 		return gc.CreateComment(org, repo, number, removeBenchmarkLabelNoti)
 	}
 	return nil

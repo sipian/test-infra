@@ -138,7 +138,6 @@ func handle(gc githubClient, config *plugins.Configuration, ownersClient repoown
 		if benchmarkOption == "release" {
 			resp = benchmarkReleaseNoti		
 		}
-		gc.CreateComment(org, repo, e.Number, plugins.FormatResponseRaw(e.Body, e.HTMLURL, commentAuthor, resp))
 		log.Infof("Adding Benchmark label.")
 		if err := gc.AddLabel(org, repo, e.Number, benchmarkLabel); err != nil {
 			return err
@@ -159,6 +158,7 @@ func handle(gc githubClient, config *plugins.Configuration, ownersClient repoown
 				}
 			}
 		}
+		gc.CreateComment(org, repo, e.Number, plugins.FormatResponseRaw(e.Body, e.HTMLURL, commentAuthor, resp))
 	}
 	return nil
 }

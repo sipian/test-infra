@@ -153,7 +153,7 @@ func handle(gc githubClient, config *plugins.Configuration, ownersClient repoown
 			log.WithError(err).Errorf("Failed to get the list of issue comments on %s/%s#%d.", org, repo, e.Number)
 		}
 		for _, comment := range comments {
-			if comment.User.Login == botname && (comment.Body == removeBenchmarkLabelNoti || comment.Body == benchmarkReleaseNoti || comment.Body == benchmarkPRNoti) {
+			if comment.User.Login == botname && (strings.Contains(comment.Body, removeBenchmarkLabelNoti) || strings.Contains(comment.Body, benchmarkReleaseNoti) || strings.Contains(comment.Body, benchmarkPRNoti)) {
 				if err := gc.DeleteComment(org, repo, comment.ID); err != nil {
 					log.WithError(err).Errorf("Failed to delete comment from %s/%s#%d, ID:%d.", org, repo, e.Number, comment.ID)
 				}

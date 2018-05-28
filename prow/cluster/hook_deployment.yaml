@@ -33,7 +33,7 @@ spec:
       terminationGracePeriodSeconds: 180
       containers:
       - name: hook
-        image: gcr.io/prometheus-test-204522/hook:v20180528-stat-15-gd094fe8
+        image: gcr.io/prometheus-test-204522/hook:v20180528-stat-16-g54f172d
         imagePullPolicy: Always
         args:
         - --dry-run=false

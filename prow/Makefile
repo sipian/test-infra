@@ -25,7 +25,7 @@ ALPINE_VERSION           ?= 0.1
 GIT_VERSION              ?= 0.2
 
 # YYYYmmdd-commitish
-TAG = $(shell date -u +v%Y%m%d)-$(shell git describe --tags --always)
+TAG := $(shell date -u +v%Y%m%d)-$(shell git describe --tags --always --dirty)
 # HOOK_VERSION is the version of the hook image
 HOOK_VERSION              ?= $(TAG)
 # SINKER_VERSION is the version of the sinker image
@@ -70,10 +70,10 @@ PUSH     ?= docker push
 DOCKER_LABELS=--label io.k8s.prow.git-describe="$(shell git describe --tags --always)"
 
 update-config: get-cluster-credentials
-	kubectl create configmap config --from-file=config=config.yaml --dry-run -o yaml | kubectl replace configmap config -f -
+	kubectl create configmap config --from-file=config=config-prometheus.yaml --dry-run -o yaml | kubectl replace configmap config -f -
 
 update-plugins: get-cluster-credentials
-	kubectl create configmap plugins --from-file=plugins=plugins.yaml --dry-run -o yaml | kubectl replace configmap plugins -f -
+	kubectl create configmap plugins --from-file=plugins=plugins-prometheus.yaml --dry-run -o yaml | kubectl replace configmap plugins -f -
 
 update-cat-api-key: get-cluster-credentials
 	kubectl create configmap cat-api-key --from-file=api-key=plugins/cat/api-key --dry-run -o yaml | kubectl replace configmap cat-api-key -f -
@@ -124,6 +124,8 @@ hook-deployment: get-cluster-credentials
 hook-service: get-cluster-credentials
 	kubectl apply -f cluster/hook_service.yaml
 
+# Prometheus targets
+
 bump:
 	./bump.sh hook
 
@@ -143,7 +145,11 @@ unused: $(GOVENDOR)
 
 style: prometheus_style staticcheck unused test build
 
-.PHONY: hook-image hook-deployment hook-service style prometheus_style staticcheck unused
+check-config:
+	bazel run //prow/cmd/config -- --config-path=/home/harsh/go/src/k8s.io/test-infra/prow/config-prometheus.yaml
+	bazel run //prow/cmd/config -- --plugin-config=/home/harsh/go/src/k8s.io/test-infra/prow/plugins-prometheus.yaml
+
+.PHONY: hook-image hook-deployment hook-service style prometheus_style staticcheck unused check-config
 
 sinker-image: alpine-image
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o cmd/sinker/sinker k8s.io/test-infra/prow/cmd/sinker

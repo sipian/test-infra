@@ -172,6 +172,7 @@ func buildPrometheusImages(gc *git.Client, log *logrus.Entry) error {
 	// building prometheus master
 	r, err := gc.Clone(repoName)
 	if err != nil {
+		log.WithError(err).Error("Error cloning repo's master branch.")
 		return err
 	}
 	defer func() {

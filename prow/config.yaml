@@ -1,4 +1,20 @@
-log_level: debug
+plank:
+  job_url_template: 'http://35.227.204.14/log?job={{.Spec.Job}}&id={{.Status.BuildID}}'
+  pod_pending_timeout: 60m
+  default_decoration_config:
+    timeout: 7200000000000 # 2h
+    grace_period: 15000000000 # 15s
+    utility_images:
+      clonerefs: "registry.svc.ci.openshift.org/ci/clonerefs:latest"
+      initupload: "registry.svc.ci.openshift.org/ci/initupload:latest"
+      entrypoint: "registry.svc.ci.openshift.org/ci/entrypoint:latest"
+      sidecar: "registry.svc.ci.openshift.org/ci/sidecar:latest"
+    gcs_configuration:
+      bucket: "prometheus-prow"
+      path_strategy: "legacy"
+      default_org: "sipian"
+      default_repo: "prometheus"
+    gcs_credentials_secret: "service-account"
 
 periodics:
 - interval: 10m
@@ -8,3 +24,45 @@ periodics:
     containers:
     - image: alpine:latest
       command: ["/bin/date"]
+
+presubmits:
+  sipian/prometheus:
+  - name: check-tests
+    context: check-tests
+    always_run: true
+    skip_report: false
+    agent: kubernetes
+    decorate: true
+    path_alias: /github.com/prometheus/prometheus
+    spec:
+      containers:
+      - image: sipian/golang-builder:prow
+        command:
+        - "./prow/builder.sh"
+        imagePullPolicy: Always
+        env:
+        - name: GOVERSION
+          value: "1.10"
+        - name: TEST
+          value: true
+
+  - name: check-build
+    context: check-build
+    always_run: true
+    skip_report: false
+    agent: kubernetes
+    decorate: true
+    path_alias: /github.com/prometheus/prometheus
+    spec:
+      containers:
+      - image: sipian/golang-builder:prow
+        command:
+        - "./prow/builder.sh"
+        imagePullPolicy: Always
+        env:
+        - name: GOVERSION
+          value: "1.10"
+        - name: ARCH
+          value: "linux/amd64,windows/amd64,windows/386,freebsd/amd64"
+
+## linux/amd64,linux/386,darwin/amd64,darwin/386,windows/amd64,windows/386,freebsd/amd64,freebsd/386,openbsd/amd64,openbsd/386,netbsd/amd64,netbsd/386,dragonfly/amd64,linux/armv5,linux/armv6,linux/armv7,linux/arm64,freebsd/armv6,freebsd/armv7,openbsd/armv7,netbsd/armv6,netbsd/armv7,linux/ppc64,linux/ppc64le,linux/mips64,linux/mips64le

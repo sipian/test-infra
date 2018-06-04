@@ -14,6 +14,10 @@
 
 all: build test
 
+GO           ?= go
+GOFMT        ?= $(GO)fmt
+FIRST_GOPATH := $(firstword $(subst :, ,$(shell $(GO) env GOPATH)))
+STATICCHECK  := $(FIRST_GOPATH)/bin/staticcheck
 
 # ALPINE_VERSION is the version of the alpine image
 ALPINE_VERSION           ?= 0.1
@@ -125,7 +129,21 @@ bump:
 
 prometheus: bump hook-image hook-deployment
 
-.PHONY: hook-image hook-deployment hook-service
+prometheus_style:
+	@echo ">> checking code style"
+	! $(GOFMT) -d $$(find . -path ./vendor -prune -o -name '*.go' -print) | grep '^'
+
+staticcheck: $(STATICCHECK)
+	@echo ">> running staticcheck"
+	$(STATICCHECK) -ignore "$(STATICCHECK_IGNORE)" $(pkgs)
+
+unused: $(GOVENDOR)
+	@echo ">> running check for unused packages"
+	@$(GOVENDOR) list +unused | grep . && exit 1 || echo 'No unused packages'
+
+style: prometheus_style staticcheck unused test build
+
+.PHONY: hook-image hook-deployment hook-service style prometheus_style staticcheck unused
 
 sinker-image: alpine-image
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o cmd/sinker/sinker k8s.io/test-infra/prow/cmd/sinker

@@ -19,7 +19,6 @@ package benchmark
 import (
 	"fmt"
 	"io/ioutil"
-	//"os"
 	"regexp"
 	"strings"
 
@@ -94,87 +93,90 @@ func handle(ghc githubClient, gc *git.Client, config *plugins.Configuration, own
 
 	// If we create an "/benchmark" comment, add benchmark if necessary.
 	// If we create a "/benchmark cancel" comment, remove benchmark if necessary.
-	wantBenchmark := false
-	if benchmarkRe.MatchString(e.Body) {
-		wantBenchmark = true
-	} else if benchmarkCancelRe.MatchString(e.Body) {
-		wantBenchmark = false
-	} else {
-		return nil
-	}
+	// wantBenchmark := false
+	// if benchmarkRe.MatchString(e.Body) {
+	// 	wantBenchmark = true
+	// } else if benchmarkCancelRe.MatchString(e.Body) {
+	// 	wantBenchmark = false
+	// } else {
+	// 	return nil
+	// }
 	benchmarkOption := "pr"
 	if strings.Contains(e.Body, "release") {
 		benchmarkOption = "release"
 	}
 
-	org := e.Repo.Owner.Login
-	repo := e.Repo.Name
-	commentAuthor := e.User.Login
+	buildPrometheusImages(gc, benchmarkOption, log)
 
-	ro, err := loadRepoOwners(ghc, ownersClient, org, repo, e.Number)
-	if err != nil {
-		return err
-	}
+	/*	org := e.Repo.Owner.Login
+		repo := e.Repo.Name
+		commentAuthor := e.User.Login
 
-	if !loadReviewers(ro, []string{"OWNERS"}).Has(commentAuthor) {
-		resp := "adding benchmark is restricted to approvers in OWNERS files."
-		log.Infof("Reply to /benchmark request with comment: \"%s\"", resp)
-		return ghc.CreateComment(org, repo, e.Number, plugins.FormatResponseRaw(e.Body, e.HTMLURL, commentAuthor, resp))
-	}
-
-	// Only add the label if it doesn't have it, and vice versa.
-	hasBenchmarkLabel := false
-	labels, err := ghc.GetIssueLabels(org, repo, e.Number)
-	if err != nil {
-		log.WithError(err).Errorf("Failed to get the labels on %s/%s#%d.", org, repo, e.Number)
-	}
-	for _, candidate := range labels {
-		if candidate.Name == benchmarkLabel {
-			hasBenchmarkLabel = true
-			break
-		}
-	}
-	if hasBenchmarkLabel && !wantBenchmark {
-		log.Infof("Removing Benchmark label.")
-		return ghc.RemoveLabel(org, repo, e.Number, benchmarkLabel)
-	} else if !hasBenchmarkLabel && wantBenchmark {
-		resp := benchmarkPRNoti
-		if benchmarkOption == "release" {
-			resp = benchmarkReleaseNoti
-		}
-		buildPrometheusImages(gc, log)
-		log.Infof("Adding Benchmark label.")
-		if err := ghc.AddLabel(org, repo, e.Number, benchmarkLabel); err != nil {
+		ro, err := loadRepoOwners(ghc, ownersClient, org, repo, e.Number)
+		if err != nil {
 			return err
 		}
-		// Delete the benchmark removed noti after the benchmark label is added.
-		botname, err := ghc.BotName()
-		if err != nil {
-			log.WithError(err).Errorf("Failed to get bot name.")
+		if !loadReviewers(ro, []string{"OWNERS"}).Has(commentAuthor) {
+			resp := "adding benchmark is restricted to approvers in OWNERS files."
+			log.Infof("Reply to /benchmark request with comment: \"%s\"", resp)
+			return ghc.CreateComment(org, repo, e.Number, plugins.FormatResponseRaw(e.Body, e.HTMLURL, commentAuthor, resp))
 		}
-		comments, err := ghc.ListIssueComments(org, repo, e.Number)
+
+		// Only add the label if it doesn't have it, and vice versa.
+		hasBenchmarkLabel := false
+		labels, err := ghc.GetIssueLabels(org, repo, e.Number)
 		if err != nil {
-			log.WithError(err).Errorf("Failed to get the list of issue comments on %s/%s#%d.", org, repo, e.Number)
+			log.WithError(err).Errorf("Failed to get the labels on %s/%s#%d.", org, repo, e.Number)
 		}
-		for _, comment := range comments {
-			if comment.User.Login == botname && (strings.Contains(comment.Body, removeBenchmarkLabelNoti) || strings.Contains(comment.Body, benchmarkReleaseNoti) || strings.Contains(comment.Body, benchmarkPRNoti)) {
-				if err := ghc.DeleteComment(org, repo, comment.ID); err != nil {
-					log.WithError(err).Errorf("Failed to delete comment from %s/%s#%d, ID:%d.", org, repo, e.Number, comment.ID)
-				}
+		for _, candidate := range labels {
+			if candidate.Name == benchmarkLabel {
+				hasBenchmarkLabel = true
+				break
 			}
 		}
-		ghc.CreateComment(org, repo, e.Number, plugins.FormatResponseRaw(e.Body, e.HTMLURL, commentAuthor, resp))
-	}
+		if hasBenchmarkLabel && !wantBenchmark {
+			log.Infof("Removing Benchmark label.")
+			return ghc.RemoveLabel(org, repo, e.Number, benchmarkLabel)
+		} else if !hasBenchmarkLabel && wantBenchmark {
+			resp := benchmarkPRNoti
+			if benchmarkOption == "release" {
+				resp = benchmarkReleaseNoti
+			}
+			buildPrometheusImages(gc, log)
+			log.Infof("Adding Benchmark label.")
+			if err := ghc.AddLabel(org, repo, e.Number, benchmarkLabel); err != nil {
+				return err
+			}
+			// Delete the benchmark removed noti after the benchmark label is added.
+			botname, err := ghc.BotName()
+			if err != nil {
+				log.WithError(err).Errorf("Failed to get bot name.")
+			}
+			comments, err := ghc.ListIssueComments(org, repo, e.Number)
+			if err != nil {
+				log.WithError(err).Errorf("Failed to get the list of issue comments on %s/%s#%d.", org, repo, e.Number)
+			}
+			for _, comment := range comments {
+				if comment.User.Login == botname && (strings.Contains(comment.Body, removeBenchmarkLabelNoti) || strings.Contains(comment.Body, benchmarkReleaseNoti) || strings.Contains(comment.Body, benchmarkPRNoti)) {
+					if err := ghc.DeleteComment(org, repo, comment.ID); err != nil {
+						log.WithError(err).Errorf("Failed to delete comment from %s/%s#%d, ID:%d.", org, repo, e.Number, comment.ID)
+					}
+				}
+			}
+			ghc.CreateComment(org, repo, e.Number, plugins.FormatResponseRaw(e.Body, e.HTMLURL, commentAuthor, resp))
+		}*/
 	return nil
 }
 
-func buildPrometheusImages(gc *git.Client, log *logrus.Entry) error {
+func buildPrometheusImages(gc *git.Client, benchmarkOption string, log *logrus.Entry) error {
 	// building prometheus master
 	r, err := gc.Clone(repoName)
 	if err != nil {
 		log.WithError(err).Error("Error cloning repo's master branch.")
 		return err
 	}
+	log.Infof("Cloned successfully")
+
 	defer func() {
 		if err := r.Clean(); err != nil {
 			log.WithError(err).Error("Error cleaning up repo's master branch.")
@@ -185,9 +187,9 @@ func buildPrometheusImages(gc *git.Client, log *logrus.Entry) error {
 		log.WithError(err).Errorf("Failed to read directory.")
 		return err
 	}
-
+	log.Infof("Read directory successfully")
 	for _, f := range files {
-		log.Infof(f.Name())
+		log.Infof("%s-FILE ::: %s", benchmarkOption, f.Name())
 	}
 	return nil
 }

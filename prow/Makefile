@@ -124,12 +124,14 @@ hook-deployment: get-cluster-credentials
 hook-service: get-cluster-credentials
 	kubectl apply -f cluster/hook_service.yaml
 
+.PHONY: hook-image hook-deployment hook-service
+
 # Prometheus targets
 
 bump:
 	./bump.sh hook
 
-prometheus: bump hook-image hook-deployment
+hook: bump hook-image hook-deployment
 
 prometheus_style:
 	@echo ">> checking code style"
@@ -145,11 +147,16 @@ unused: $(GOVENDOR)
 
 style: prometheus_style staticcheck unused test build
 
-check-config:
+bazel-check-config:
 	bazel run //prow/cmd/config -- --config-path=/home/harsh/go/src/k8s.io/test-infra/prow/config-prometheus.yaml
 	bazel run //prow/cmd/config -- --plugin-config=/home/harsh/go/src/k8s.io/test-infra/prow/plugins-prometheus.yaml
 
-.PHONY: hook-image hook-deployment hook-service style prometheus_style staticcheck unused check-config
+config: bazel-check-config update-config update-plugins
+
+comment: 
+	bazel run //prow/cmd/phony -- --address=http://35.227.204.14/hook --hmac=880a9aa4f2ac52faa6801eed4fb8f9bb1ced5799 --event=issue_comment --payload=/home/harsh/go/src/k8s.io/test-infra/prow/open_pr.json
+
+.PHONY:  bump hook prometheus_style staticcheck unused style bazel-check-config config comment
 
 sinker-image: alpine-image
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o cmd/sinker/sinker k8s.io/test-infra/prow/cmd/sinker

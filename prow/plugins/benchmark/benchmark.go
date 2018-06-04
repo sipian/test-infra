@@ -182,7 +182,7 @@ func buildPrometheusImages(gc *git.Client, benchmarkOption string, log *logrus.E
 			log.WithError(err).Error("Error cleaning up repo's master branch.")
 		}
 	}()
-	files, err := ioutil.ReadDir("./")
+	files, err := ioutil.ReadDir("./tmp/")
 	if err != nil {
 		log.WithError(err).Errorf("Failed to read directory.")
 		return err

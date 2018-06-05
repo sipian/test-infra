@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM gcr.io/k8s-prow/git:0.1
-LABEL maintainer="spxtr@google.com"
+FROM docker:18.05
+# LABEL maintainer="spxtr@google.com"
 
-RUN apk update && apk add htop
+RUN apk add --no-cache ca-certificates && update-ca-certificates
+RUN apk add --no-cache git openssh
 
 COPY hook /hook
 ENTRYPOINT ["/hook"]

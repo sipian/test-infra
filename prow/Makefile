@@ -113,7 +113,7 @@ branchprotector-cronjob: get-cluster-credentials
 
 .PHONY: branchprotector-image branchprotector-cronjob
 
-hook-image: git-image
+hook-image:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o cmd/hook/hook k8s.io/test-infra/prow/cmd/hook
 	docker build -t "$(REGISTRY)/$(PROJECT)/hook:$(HOOK_VERSION)" $(DOCKER_LABELS) cmd/hook
 	$(PUSH) "$(REGISTRY)/$(PROJECT)/hook:$(HOOK_VERSION)"

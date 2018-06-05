@@ -82,7 +82,7 @@ metadata:
   labels:
     app: hook
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -96,7 +96,7 @@ spec:
       terminationGracePeriodSeconds: 180
       containers:
       - name: hook
-        image: gcr.io/prometheus-test-204522/hook:v20180605-stat-203-g4a14017
+        image: gcr.io/prometheus-test-204522/hook:v20180605-stat-204-g7b5edec
         imagePullPolicy: Always
         args:
         - --dry-run=false

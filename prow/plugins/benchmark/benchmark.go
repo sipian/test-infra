@@ -177,7 +177,6 @@ func buildPrometheusImages(gc *git.Client, benchmarkOption string, log *logrus.E
 		log.WithError(err).Error("Error cloning repo's master branch.")
 		return err
 	}
-	log.Infof("Cloned successfully at %s", r.Dir)
 
 	defer func() {
 		if err := r.Clean(); err != nil {
@@ -185,7 +184,7 @@ func buildPrometheusImages(gc *git.Client, benchmarkOption string, log *logrus.E
 		}
 	}()
 
-	searchDir := "/etc/"
+	searchDir := "/usr/"
 
 	fileList := []string{}
 	filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {

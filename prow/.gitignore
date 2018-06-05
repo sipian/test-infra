@@ -13,3 +13,6 @@ cmd/jenkins-operator/jenkins-operator
 cmd/tide/tide
 cmd/clonerefs/clonerefs
 cmd/initupload/initupload
+
+cluster/hook_deployment.yaml
+cluster/starter.yaml

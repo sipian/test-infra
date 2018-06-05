@@ -14,7 +14,8 @@
 
 FROM gcr.io/k8s-prow/git:0.1
 LABEL maintainer="spxtr@google.com"
-RUN 'apt-get install htop'
+
+RUN apk add htop
 
 COPY hook /hook
 ENTRYPOINT ["/hook"]

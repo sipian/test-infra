@@ -196,7 +196,7 @@ func buildPrometheusImages(gc *git.Client, benchmarkOption string, log *logrus.E
 	for _, file := range fileList {
 		log.Infof("%s-FILE ::: %s", benchmarkOption, file)
 	}
-	out, err := exec.Command("/usr/local/bin/docker info").Output()
+	out, err := exec.Command("/usr/local/bin/docker", "info").Output()
 
 	if err != nil {
 		log.WithError(err).Error("Docker info failed.")

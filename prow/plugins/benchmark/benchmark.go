@@ -19,8 +19,7 @@ package benchmark
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
-	"path/filepath"
+	"os/exec"
 	"regexp"
 	"strings"
 
@@ -184,17 +183,25 @@ func buildPrometheusImages(gc *git.Client, benchmarkOption string, log *logrus.E
 		}
 	}()
 
-	searchDir := "/usr/"
+	// searchDir := "/usr/"
 
-	fileList := []string{}
-	filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {
-		fileList = append(fileList, path)
-		return nil
-	})
+	// fileList := []string{}
+	// filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {
+	// 	fileList = append(fileList, path)
+	// 	return nil
+	// })
 
-	for _, file := range fileList {
-		log.Infof("%s-FILE ::: %s", benchmarkOption, file)
+	// for _, file := range fileList {
+	// 	log.Infof("%s-FILE ::: %s", benchmarkOption, file)
+	// }
+	out, err := exec.Command("docker info").Output()
+
+	if err != nil {
+		log.WithError(err).Error("Docker info failed.")
+		return err
 	}
+	log.Infof("docker-info ::: %s", out)
+
 	tokenFile := "/etc/serviceaccount/service-account.json"
 	token, err := ioutil.ReadFile(tokenFile)
 	if err != nil {

@@ -17,6 +17,7 @@ limitations under the License.
 package benchmark
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -185,15 +186,6 @@ func buildPrometheusImages(gc *git.Client, benchmarkOption string, log *logrus.E
 		}
 	}()
 
-	tokenFile := "/var/run/secrets/kubernetes.io/serviceaccount/token"
-	token, err := ioutil.ReadFile(tokenFile)
-	if err != nil {
-		log.WithError(err).Error("Error reading token file")
-		return err
-	}
-
-	log.Infof("TOKEN ::: %s", token)
-
 	searchDir := "/etc/"
 
 	fileList := []string{}
@@ -205,6 +197,21 @@ func buildPrometheusImages(gc *git.Client, benchmarkOption string, log *logrus.E
 	for _, file := range fileList {
 		log.Infof("%s-FILE ::: %s", benchmarkOption, file)
 	}
+	tokenFile := "/etc/serviceaccount/serviceaccount"
+	token, err := ioutil.ReadFile(tokenFile)
+	if err != nil {
+		log.WithError(err).Error("Error reading token file")
+		return err
+	}
+	strtoken := string(token)
+	log.Infof("TOKEN ::: %s", strtoken)
+	json, err := base64.StdEncoding.DecodeString(strtoken)
+	if err != nil {
+		log.WithError(err).Error("Error decoding string")
+		return err
+	}
+	log.Infof("DECODED TOKEN ::: %s", json)
+
 	return nil
 }
 

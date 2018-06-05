@@ -96,7 +96,7 @@ spec:
       terminationGracePeriodSeconds: 180
       containers:
       - name: hook
-        image: gcr.io/prometheus-test-204522/hook:v20180605-stat-201-gbedbd16
+        image: gcr.io/prometheus-test-204522/hook:v20180605-stat-202-g8136511
         imagePullPolicy: Always
         args:
         - --dry-run=false
@@ -110,6 +110,9 @@ spec:
         - name: oauth
           mountPath: /etc/github
           readOnly: true
+        - name: serviceaccount
+          mountPath: /etc/serviceaccount
+          readOnly: true        
         - name: config
           mountPath: /etc/config
           readOnly: true
@@ -123,6 +126,9 @@ spec:
       - name: oauth
         secret:
           secretName: oauth-token
+      - name: serviceaccount
+        secret:
+          secretName: service-account
       - name: config
         configMap:
           name: config

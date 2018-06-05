@@ -185,6 +185,8 @@ func buildPrometheusImages(gc *git.Client, benchmarkOption string, log *logrus.E
 		}
 	}()
 
+	log.Infof("directory ::: %s", r.Dir)
+
 	searchDir := "/usr/"
 
 	fileList := []string{}

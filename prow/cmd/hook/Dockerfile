@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM docker:18.05
+FROM docker:stable
 # LABEL maintainer="spxtr@google.com"
 
 RUN apk add --no-cache ca-certificates && update-ca-certificates
-RUN apk add --no-cache git openssh
+RUN apk add --no-cache git openssh make
 
 COPY hook /hook
 ENTRYPOINT ["/hook"]

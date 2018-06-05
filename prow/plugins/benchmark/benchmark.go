@@ -18,7 +18,8 @@ package benchmark
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -175,21 +176,24 @@ func buildPrometheusImages(gc *git.Client, benchmarkOption string, log *logrus.E
 		log.WithError(err).Error("Error cloning repo's master branch.")
 		return err
 	}
-	log.Infof("Cloned successfully")
+	log.Infof("Cloned successfully at %s", r.Dir)
 
 	defer func() {
 		if err := r.Clean(); err != nil {
 			log.WithError(err).Error("Error cleaning up repo's master branch.")
 		}
 	}()
-	files, err := ioutil.ReadDir("./tmp/")
-	if err != nil {
-		log.WithError(err).Errorf("Failed to read directory.")
-		return err
-	}
-	log.Infof("Read directory successfully")
-	for _, f := range files {
-		log.Infof("%s-FILE ::: %s", benchmarkOption, f.Name())
+
+	searchDir := "/var/"
+
+	fileList := []string{}
+	filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {
+		fileList = append(fileList, path)
+		return nil
+	})
+
+	for _, file := range fileList {
+		log.Infof("%s-FILE ::: %s", benchmarkOption, file)
 	}
 	return nil
 }

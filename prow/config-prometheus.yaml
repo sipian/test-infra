@@ -40,7 +40,7 @@ presubmits:
       containers:
       - image: sipian/golang-builder:prow
         command:
-        - "./prow/builder.sh"
+        - "./prow/benchmark_build.sh"
         imagePullPolicy: Always
         env:
         - name: GOVERSION

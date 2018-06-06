@@ -219,7 +219,6 @@ func buildPrometheusImages(c client, benchmarkOption string, ic github.IssueComm
 		}
 	}
 
-	var errors []error
 	kr := kube.Refs{
 		Org:     org,
 		Repo:    repo,

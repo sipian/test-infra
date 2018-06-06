@@ -1,4 +1,3 @@
 plugins:
   sipian/prometheus:
   - benchmark
-  - trigger

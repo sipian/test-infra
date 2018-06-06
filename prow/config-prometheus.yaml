@@ -32,7 +32,7 @@ presubmits:
   - name: start-benchmark
     context: start-benchmark
     always_run: true
-    skip_report: false
+    skip_report: true
     agent: kubernetes
     decorate: true
     path_alias: /github.com/prometheus/prometheus
@@ -47,6 +47,19 @@ presubmits:
           value: "1.10"
         - name: TEST
           value: "true"
+        volumeMounts:
+        - name: serviceaccount
+          mountPath: /etc/serviceaccount
+          readOnly: true
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+      volumes:
+      - name: serviceaccount
+        secret:
+          secretName: service-account          
+      - name: docker-sock 
+        hostPath: 
+            path: /var/run/docker.sock
   # sipian/prometheus:
   # - name: check-tests
   #   context: check-tests

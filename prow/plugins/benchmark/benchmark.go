@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	// "github.com/prometheus/benchmark"
@@ -37,6 +38,7 @@ import (
 
 const pluginName = "benchmark"
 const repoName = "sipian/prometheus"
+const projectName = "gcr.io/prometheus-test-204522"
 
 var (
 	benchmarkLabel           = "prow-benchmark"
@@ -125,12 +127,43 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 	} else {
 		return nil
 	}
-	benchmarkOption := "pr"
-	if strings.Contains(ic.Comment.Body, "release") {
-		benchmarkOption = "release"
-	}
 
-	buildPrometheusImages(c, benchmarkOption, ic)
+	benchmarkOption := "pr"
+	if wantBenchmark {
+		if strings.Contains(ic.Comment.Body, "release") {
+			benchmarkOption = "release"
+		}
+
+		//TODO move inside labelling logic
+		if benchmarkOption == "pr" {
+			pj, imageName, err := buildPRImage(c, ic)
+			job := *pj
+
+			if err != nil {
+				resp := fmt.Sprintf("Failed to build and push PR image %s. <br/> %v", imageName, err)
+				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
+				return fmt.Errorf("Failed to build and push PR image %s %v", imageName, err)
+			}
+
+			backoff := 5 * time.Second
+			for !job.Complete() {
+				if job.Status.State == kube.FailureState || job.Status.State == kube.AbortedState || job.Status.State == kube.ErrorState {
+					break
+				}
+				time.Sleep(backoff)
+			}
+			if job.Status.State == kube.FailureState || job.Status.State == kube.AbortedState || job.Status.State == kube.ErrorState {
+				fmt.Errorf("Failed to get build and push PR image %s", imageName)
+				resp := fmt.Sprintf("Failed to build and push PR image %s. <br/> [Error Details](%s)", imageName, job.Status.URL)
+				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
+				return fmt.Errorf("Failed to get build and push PR image %s %v", imageName, err)
+			} else {
+				c.Logger.Infof("PR Image %s has been built and pushed", imageName)
+				resp := fmt.Sprintf("Image of this PR has been built at [%s](%s)", imageName, imageName)
+				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
+			}
+		}
+	}
 
 	ro, err := loadRepoOwners(c.GitHubClient, ownersClient, org, repo, number)
 	if err != nil {
@@ -187,7 +220,7 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 	return nil
 }
 
-func buildPrometheusImages(c client, benchmarkOption string, ic github.IssueCommentEvent) error {
+func buildPRImage(c client, ic github.IssueCommentEvent) (*kube.ProwJob, string, error) {
 
 	org := ic.Repo.Owner.Login
 	repo := ic.Repo.Name
@@ -196,24 +229,20 @@ func buildPrometheusImages(c client, benchmarkOption string, ic github.IssueComm
 	pr, err := c.GitHubClient.GetPullRequest(org, repo, number)
 	if err != nil {
 		fmt.Errorf("Failed to Get Pull Request %d %v.", number, err)
-		return err
+		return nil, "", err
 	}
 
 	baseSHA, err := c.GitHubClient.GetRef(org, repo, "heads/"+pr.Base.Ref)
 	if err != nil {
 		fmt.Errorf("Failed to Get Base SHA %v.", err)
-		return err
+		return nil, "", err
 	}
 
 	var benchmarkJob config.Presubmit
+	imageName := fmt.Sprintf("%s/prometheus-benchmark:pr-%d-ts-%s", projectName, number, time.Now().Format("20060102150405"))
 	for _, job := range c.Config.Presubmits[pr.Base.Repo.FullName] {
 		if job.Name == "start-benchmark" {
-			//adding environment variable to start-benchmark job in presubmit spec
-			if benchmarkOption == "pr" {
-				job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{"BENCHMARK_OPTION": "pr"})...)
-			} else {
-				job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{"BENCHMARK_OPTION": "release"})...)
-			}
+			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{"PROW_BENCHMARK_DOCKER_IMAGE": imageName})...)
 			benchmarkJob = job
 			break
 		}
@@ -244,9 +273,9 @@ func buildPrometheusImages(c client, benchmarkOption string, ic github.IssueComm
 	c.Logger.WithFields(pjutil.ProwJobFields(&pj)).Info("Creating a new prowjob.")
 	if _, err := c.KubeClient.CreateProwJob(pj); err != nil {
 		fmt.Errorf("Failed to Create start-benchmark ProwJob %v.", err)
-		return err
+		return nil, "", err
 	}
-	return nil
+	return &pj, imageName, nil
 }
 
 type ghLabelClient interface {

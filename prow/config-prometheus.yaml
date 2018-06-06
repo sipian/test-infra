@@ -27,44 +27,63 @@ log_level: debug
 #     - image: alpine:latest
 #       command: ["/bin/date"]
 
-# presubmits:
-#   sipian/prometheus:
-#   - name: check-tests
-#     context: check-tests
-#     always_run: true
-#     skip_report: false
-#     agent: kubernetes
-#     decorate: true
-#     path_alias: /github.com/prometheus/prometheus
-#     spec:
-#       containers:
-#       - image: sipian/golang-builder:prow
-#         command:
-#         - "./prow/builder.sh"
-#         imagePullPolicy: Always
-#         env:
-#         - name: GOVERSION
-#           value: "1.10"
-#         - name: TEST
-#           value: "true"
+presubmits:
+  sipian/prometheus:
+  - name: start-benchmark
+    context: start-benchmark
+    always_run: true
+    skip_report: false
+    agent: kubernetes
+    decorate: true
+    path_alias: /github.com/prometheus/prometheus
+    spec:
+      containers:
+      - image: sipian/golang-builder:prow
+        command:
+        - "./prow/builder.sh"
+        imagePullPolicy: Always
+        env:
+        - name: GOVERSION
+          value: "1.10"
+        - name: TEST
+          value: "true"
+  # sipian/prometheus:
+  # - name: check-tests
+  #   context: check-tests
+  #   always_run: true
+  #   skip_report: false
+  #   agent: kubernetes
+  #   decorate: true
+  #   path_alias: /github.com/prometheus/prometheus
+  #   spec:
+  #     containers:
+  #     - image: sipian/golang-builder:prow
+  #       command:
+  #       - "./prow/builder.sh"
+  #       imagePullPolicy: Always
+  #       env:
+  #       - name: GOVERSION
+  #         value: "1.10"
+  #       - name: TEST
+  #         value: "true"
 
-#   - name: check-build
-#     context: check-build
-#     always_run: true
-#     skip_report: false
-#     agent: kubernetes
-#     decorate: true
-#     path_alias: /github.com/prometheus/prometheus
-#     spec:
-#       containers:
-#       - image: sipian/golang-builder:prow
-#         command:
-#         - "./prow/builder.sh"
-#         imagePullPolicy: Always
-#         env:
-#         - name: GOVERSION
-#           value: "1.10"
-#         - name: ARCH
-#           value: "linux/amd64"
+  # - name: check-build
+  #   context: check-build
+  #   always_run: true
+  #   skip_report: false
+  #   agent: kubernetes
+  #   decorate: true
+  #   path_alias: /github.com/prometheus/prometheus
+  #   spec:
+  #     containers:
+  #     - image: sipian/golang-builder:prow
+  #       command:
+  #       - "./prow/builder.sh"
+  #       imagePullPolicy: Always
+  #       env:
+  #       - name: GOVERSION
+  #         value: "1.10"
+  #       - name: ARCH
+  #         value: "linux/amd64"
 
 ## linux/amd64,linux/386,darwin/amd64,darwin/386,windows/amd64,windows/386,freebsd/amd64,freebsd/386,openbsd/amd64,openbsd/386,netbsd/amd64,netbsd/386,dragonfly/amd64,linux/armv5,linux/armv6,linux/armv7,linux/arm64,freebsd/armv6,freebsd/armv7,openbsd/armv7,netbsd/armv6,netbsd/armv7,linux/ppc64,linux/ppc64le,linux/mips64,linux/mips64le

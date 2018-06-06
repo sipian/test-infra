@@ -18,26 +18,28 @@ package benchmark
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/sirupsen/logrus"
 	// "github.com/prometheus/benchmark"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/test-infra/prow/git"
+	"k8s.io/test-infra/prow/config"
 	"k8s.io/test-infra/prow/github"
+	"k8s.io/test-infra/prow/kube"
+	"k8s.io/test-infra/prow/pjutil"
 	"k8s.io/test-infra/prow/pluginhelp"
 	"k8s.io/test-infra/prow/plugins"
 	"k8s.io/test-infra/prow/repoowners"
 )
 
 const pluginName = "benchmark"
-const repoName = "prometheus/prometheus"
+const repoName = "sipian/prometheus"
 
 var (
-	benchmarkLabel           = "benchmark"
+	benchmarkLabel           = "prow-benchmark"
 	benchmarkRe              = regexp.MustCompile(`(?mi)^/benchmark\s+(release|pr)\s*$`)
 	benchmarkCancelRe        = regexp.MustCompile(`(?mi)^/benchmark\s+cancel\s*$`)
 	removeBenchmarkLabelNoti = "New changes are detected. Benchmarking will be stopped."
@@ -46,7 +48,7 @@ var (
 )
 
 func init() {
-	plugins.RegisterGenericCommentHandler(pluginName, handleGenericComment, helpProvider)
+	plugins.RegisterIssueCommentHandler(pluginName, handleIssueComment, helpProvider)
 	plugins.RegisterPullRequestHandler(pluginName, func(pc plugins.PluginClient, pe github.PullRequestEvent) error {
 		return handlePullRequest(pc.GitHubClient, pe, pc.Logger)
 	}, helpProvider)
@@ -75,150 +77,176 @@ type githubClient interface {
 	RemoveLabel(owner, repo string, number int, label string) error
 	GetIssueLabels(org, repo string, number int) ([]github.Label, error)
 	GetPullRequest(org, repo string, number int) (*github.PullRequest, error)
+	GetRef(org, repo, ref string) (string, error)
 	GetPullRequestChanges(org, repo string, number int) ([]github.PullRequestChange, error)
 	ListIssueComments(org, repo string, number int) ([]github.IssueComment, error)
 	DeleteComment(org, repo string, ID int) error
 	BotName() (string, error)
 }
 
-func handleGenericComment(pc plugins.PluginClient, e github.GenericCommentEvent) error {
-	return handle(pc.GitHubClient, pc.GitClient, pc.PluginConfig, pc.OwnersClient, pc.Logger, &e)
+type kubeClient interface {
+	CreateProwJob(kube.ProwJob) (kube.ProwJob, error)
 }
 
-func handle(ghc githubClient, gc *git.Client, config *plugins.Configuration, ownersClient repoowners.Interface, log *logrus.Entry, e *github.GenericCommentEvent) error {
-	// Only consider open PRs and new comments.
+type client struct {
+	GitHubClient githubClient
+	KubeClient   kubeClient
+	Config       *config.Config
+	Logger       *logrus.Entry
+}
 
-	if !e.IsPR || e.IssueState != "open" || e.Action != github.GenericCommentActionCreated {
-		return nil
+func getClient(pc plugins.PluginClient) client {
+	return client{
+		GitHubClient: pc.GitHubClient,
+		Config:       pc.Config,
+		KubeClient:   pc.KubeClient,
+		Logger:       pc.Logger,
 	}
+}
+
+func handleIssueComment(pc plugins.PluginClient, ic github.IssueCommentEvent) error {
+	return handle(getClient(pc), pc.OwnersClient, ic)
+}
+
+func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentEvent) error {
+
+	org := ic.Repo.Owner.Login
+	repo := ic.Repo.Name
+	number := ic.Issue.Number
+	commentAuthor := ic.Comment.User.Login
 
 	// If we create an "/benchmark" comment, add benchmark if necessary.
 	// If we create a "/benchmark cancel" comment, remove benchmark if necessary.
-	// wantBenchmark := false
-	// if benchmarkRe.MatchString(e.Body) {
-	// 	wantBenchmark = true
-	// } else if benchmarkCancelRe.MatchString(e.Body) {
-	// 	wantBenchmark = false
-	// } else {
-	// 	return nil
-	// }
+	wantBenchmark := false
+	if benchmarkRe.MatchString(ic.Comment.Body) {
+		wantBenchmark = true
+	} else if benchmarkCancelRe.MatchString(ic.Comment.Body) {
+		wantBenchmark = false
+	} else {
+		return nil
+	}
 	benchmarkOption := "pr"
-	if strings.Contains(e.Body, "release") {
+	if strings.Contains(ic.Comment.Body, "release") {
 		benchmarkOption = "release"
 	}
 
-	buildPrometheusImages(gc, benchmarkOption, log)
+	buildPrometheusImages(c, benchmarkOption, ic)
 
-	/*	org := e.Repo.Owner.Login
-		repo := e.Repo.Name
-		commentAuthor := e.User.Login
+	ro, err := loadRepoOwners(c.GitHubClient, ownersClient, org, repo, number)
+	if err != nil {
+		return err
+	}
+	if !loadReviewers(ro, []string{"OWNERS"}).Has(commentAuthor) {
+		resp := "adding benchmark is restricted to approvers in OWNERS files."
+		c.Logger.Infof("Reply to /benchmark request with comment: \"%s\".", resp)
+		return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
+	}
 
-		ro, err := loadRepoOwners(ghc, ownersClient, org, repo, e.Number)
-		if err != nil {
+	// Only add the label if it doesn't have it, and vice versa.
+	hasBenchmarkLabel := false
+	labels, err := c.GitHubClient.GetIssueLabels(org, repo, number)
+	if err != nil {
+		return fmt.Errorf("Failed to get the labels on %s/%s#%d %v.", org, repo, number, err)
+	}
+	for _, candidate := range labels {
+		if candidate.Name == benchmarkLabel {
+			hasBenchmarkLabel = true
+			break
+		}
+	}
+	if hasBenchmarkLabel && !wantBenchmark {
+		c.Logger.Infof("Removing Benchmark label.")
+		return c.GitHubClient.RemoveLabel(org, repo, number, benchmarkLabel)
+	} else if !hasBenchmarkLabel && wantBenchmark {
+		resp := benchmarkPRNoti
+		if benchmarkOption == "release" {
+			resp = benchmarkReleaseNoti
+		}
+		c.Logger.Infof("Adding Benchmark label.")
+		if err := c.GitHubClient.AddLabel(org, repo, number, benchmarkLabel); err != nil {
 			return err
 		}
-		if !loadReviewers(ro, []string{"OWNERS"}).Has(commentAuthor) {
-			resp := "adding benchmark is restricted to approvers in OWNERS files."
-			log.Infof("Reply to /benchmark request with comment: \"%s\"", resp)
-			return ghc.CreateComment(org, repo, e.Number, plugins.FormatResponseRaw(e.Body, e.HTMLURL, commentAuthor, resp))
-		}
-
-		// Only add the label if it doesn't have it, and vice versa.
-		hasBenchmarkLabel := false
-		labels, err := ghc.GetIssueLabels(org, repo, e.Number)
+		// Delete the benchmark removed noti after the benchmark label is added.
+		botname, err := c.GitHubClient.BotName()
 		if err != nil {
-			log.WithError(err).Errorf("Failed to get the labels on %s/%s#%d.", org, repo, e.Number)
+			fmt.Errorf("Failed to get bot name %v.", err)
 		}
-		for _, candidate := range labels {
-			if candidate.Name == benchmarkLabel {
-				hasBenchmarkLabel = true
-				break
-			}
+		comments, err := c.GitHubClient.ListIssueComments(org, repo, number)
+		if err != nil {
+			fmt.Errorf("Failed to get the list of issue comments on %s/%s#%d %v.", org, repo, number, err)
 		}
-		if hasBenchmarkLabel && !wantBenchmark {
-			log.Infof("Removing Benchmark label.")
-			return ghc.RemoveLabel(org, repo, e.Number, benchmarkLabel)
-		} else if !hasBenchmarkLabel && wantBenchmark {
-			resp := benchmarkPRNoti
-			if benchmarkOption == "release" {
-				resp = benchmarkReleaseNoti
-			}
-			buildPrometheusImages(gc, log)
-			log.Infof("Adding Benchmark label.")
-			if err := ghc.AddLabel(org, repo, e.Number, benchmarkLabel); err != nil {
-				return err
-			}
-			// Delete the benchmark removed noti after the benchmark label is added.
-			botname, err := ghc.BotName()
-			if err != nil {
-				log.WithError(err).Errorf("Failed to get bot name.")
-			}
-			comments, err := ghc.ListIssueComments(org, repo, e.Number)
-			if err != nil {
-				log.WithError(err).Errorf("Failed to get the list of issue comments on %s/%s#%d.", org, repo, e.Number)
-			}
-			for _, comment := range comments {
-				if comment.User.Login == botname && (strings.Contains(comment.Body, removeBenchmarkLabelNoti) || strings.Contains(comment.Body, benchmarkReleaseNoti) || strings.Contains(comment.Body, benchmarkPRNoti)) {
-					if err := ghc.DeleteComment(org, repo, comment.ID); err != nil {
-						log.WithError(err).Errorf("Failed to delete comment from %s/%s#%d, ID:%d.", org, repo, e.Number, comment.ID)
-					}
+		for _, comment := range comments {
+			if comment.User.Login == botname && (strings.Contains(comment.Body, removeBenchmarkLabelNoti) || strings.Contains(comment.Body, benchmarkReleaseNoti) || strings.Contains(comment.Body, benchmarkPRNoti)) {
+				if err := c.GitHubClient.DeleteComment(org, repo, comment.ID); err != nil {
+					fmt.Errorf("Failed to delete comment from %s/%s#%d, ID:%d %v.", org, repo, number, comment.ID, err)
 				}
 			}
-			ghc.CreateComment(org, repo, e.Number, plugins.FormatResponseRaw(e.Body, e.HTMLURL, commentAuthor, resp))
-		}*/
+		}
+		c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
+	}
 	return nil
 }
 
-func buildPrometheusImages(gc *git.Client, benchmarkOption string, log *logrus.Entry) error {
-	// building prometheus master
-	r, err := gc.Clone(repoName)
+func buildPrometheusImages(c client, benchmarkOption string, ic github.IssueCommentEvent) error {
+
+	org := ic.Repo.Owner.Login
+	repo := ic.Repo.Name
+	number := ic.Issue.Number
+
+	pr, err := c.GitHubClient.GetPullRequest(org, repo, number)
 	if err != nil {
-		log.WithError(err).Error("Error cloning repo's master branch.")
+		fmt.Errorf("Failed to Get Pull Request %d %v.", number, err)
 		return err
 	}
 
-	defer func() {
-		if err := r.Clean(); err != nil {
-			log.WithError(err).Error("Error cleaning up repo's master branch.")
-		}
-	}()
-
-	log.Infof("directory ::: %s", r.Dir)
-
-	searchDir := r.Dir
-
-	fileList := []string{}
-	filepath.Walk(searchDir, func(path string, f os.FileInfo, err error) error {
-		fileList = append(fileList, path)
-		return nil
-	})
-
-	for _, file := range fileList {
-		log.Infof("%s-FILE ::: %s", benchmarkOption, file)
+	baseSHA, err := c.GitHubClient.GetRef(org, repo, "heads/"+pr.Base.Ref)
+	if err != nil {
+		fmt.Errorf("Failed to Get Base SHA %v.", err)
+		return err
 	}
-	// out, err := exec.Command("/usr/local/bin/docker", "info").Output()
 
-	// if err != nil {
-	// 	log.WithError(err).Error("Docker info failed.")
-	// 	return err
-	// }
-	// log.Infof("docker-info ::: %s", out)
+	var benchmarkJob config.Presubmit
+	for _, job := range c.Config.Presubmits[pr.Base.Repo.FullName] {
+		if job.Name == "start-benchmark" {
+			//adding environment variable to start-benchmark job in presubmit spec
+			if benchmarkOption == "pr" {
+				job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{"BENCHMARK_OPTION": "pr"})...)
+			} else {
+				job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{"BENCHMARK_OPTION": "release"})...)
+			}
+			benchmarkJob = job
+			break
+		}
+	}
 
-	// tokenFile := "/etc/serviceaccount/service-account.json"
-	// token, err := ioutil.ReadFile(tokenFile)
-	// if err != nil {
-	// 	log.WithError(err).Error("Error reading token file")
-	// 	return err
-	// }
-	// strtoken := string(token)
-	// log.Infof("TOKEN ::: %s", strtoken)
-	// json, err := base64.StdEncoding.DecodeString(strtoken)
-	// if err != nil {
-	// 	log.WithError(err).Error("Error decoding string")
-	// 	return err
-	// }
-	// log.Infof("DECODED TOKEN ::: %s", json)
+	var errors []error
+	kr := kube.Refs{
+		Org:     org,
+		Repo:    repo,
+		BaseRef: pr.Base.Ref,
+		BaseSHA: baseSHA,
+		Pulls: []kube.Pull{
+			{
+				Number: number,
+				Author: pr.User.Login,
+				SHA:    pr.Head.SHA,
+			},
+		},
+	}
 
+	c.Logger.Infof("Starting %s build.", benchmarkJob.Name)
+
+	labels := make(map[string]string)
+	for k, v := range benchmarkJob.Labels {
+		labels[k] = v
+	}
+	labels[github.EventGUID] = ic.GUID
+	pj := pjutil.NewProwJob(pjutil.PresubmitSpec(benchmarkJob, kr), labels)
+	c.Logger.WithFields(pjutil.ProwJobFields(&pj)).Info("Creating a new prowjob.")
+	if _, err := c.KubeClient.CreateProwJob(pj); err != nil {
+		fmt.Errorf("Failed to Create start-benchmark ProwJob %v.", err)
+		return err
+	}
 	return nil
 }
 
@@ -275,4 +303,25 @@ func loadReviewers(ro repoowners.RepoOwnerInterface, filenames []string) sets.St
 		reviewers = reviewers.Union(ro.Approvers(filename)).Union(ro.Reviewers(filename))
 	}
 	return reviewers
+}
+
+// kubeEnv transforms a mapping of environment variables
+// into their serialized form for a PodSpec, sorting by
+// the name of the env vars
+func kubeEnv(environment map[string]string) []v1.EnvVar {
+	var keys []string
+	for key := range environment {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var kubeEnvironment []v1.EnvVar
+	for _, key := range keys {
+		kubeEnvironment = append(kubeEnvironment, v1.EnvVar{
+			Name:  key,
+			Value: environment[key],
+		})
+	}
+
+	return kubeEnvironment
 }

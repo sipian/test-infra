@@ -137,6 +137,9 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 		//TODO move inside labelling logic
 		if benchmarkOption == "pr" {
 			pj, imageName, err := buildPRImage(c, ic)
+
+			c.Logger.Debugf("Started prowjob to build PR image")
+
 			job := *pj
 
 			if err != nil {
@@ -146,12 +149,16 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 			}
 
 			backoff := 5 * time.Second
+			c.Logger.Debugf("Starting Loop")
 			for !job.Complete() {
+				c.Logger.Debugf("Inside Loop")
 				if job.Status.State == kube.FailureState || job.Status.State == kube.AbortedState || job.Status.State == kube.ErrorState {
+					c.Logger.Debugf("Condition Failed")
 					break
 				}
 				time.Sleep(backoff)
 			}
+			c.Logger.Debugf("Ended Loop")
 			if job.Status.State == kube.FailureState || job.Status.State == kube.AbortedState || job.Status.State == kube.ErrorState {
 				fmt.Errorf("Failed to get build and push PR image %s", imageName)
 				resp := fmt.Sprintf("Failed to build and push PR image %s. <br/> [Error Details](%s)", imageName, job.Status.URL)

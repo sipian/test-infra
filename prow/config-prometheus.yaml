@@ -29,8 +29,8 @@ log_level: debug
 
 presubmits:
   sipian/prometheus:
-  - name: start-benchmark
-    context: start-benchmark
+  - name: build-PR-images
+    context: build-PR-images
     always_run: false
     skip_report: false
     agent: kubernetes

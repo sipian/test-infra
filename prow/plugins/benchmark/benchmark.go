@@ -39,6 +39,7 @@ import (
 const pluginName = "benchmark"
 const repoName = "sipian/prometheus"
 const projectName = "gcr.io/prometheus-test-204522"
+const presubmitJobName = "build-PR-images"
 
 var (
 	benchmarkLabel    = "benchmark"
@@ -165,29 +166,6 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 			return err
 		}
 
-		commentTemplate := `Welcome to Prometheus Benchmarking Tool.
-
-The two prometheus versions that will be compared are _**master**_ and _**%s**_
-
-The links to view the ongoing benchmarking metrics will be provided in the logs. 
-
-The logs can be viewed at the links provided at the end of this conversation
-
-To cancel the benchmark process run **/benchmark cancel** .`
-
-		var resp string
-		if benchmarkOption == "pr" {
-			err := buildPRImage(c, ic)
-			if err != nil {
-				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "The creation of the docker image for this PR has failed."))
-				fmt.Errorf("Failed to create docker image on %s/%s#%d %v.", org, repo, number, err)
-				return err
-			}
-			resp = fmt.Sprintf(commentTemplate, "pull request")
-		} else {
-			resp = fmt.Sprintf(commentTemplate, "latest release")
-		}
-
 		// Delete the previous benchmarking comments
 		botname, err := c.GitHubClient.BotName()
 		if err != nil {
@@ -204,6 +182,30 @@ To cancel the benchmark process run **/benchmark cancel** .`
 				}
 			}
 		}
+
+		commentTemplate := `Welcome to Prometheus Benchmarking Tool.
+
+The two prometheus versions that will be compared are _**master**_ and _**%s**_
+
+The links to view the ongoing benchmarking metrics will be provided in the logs. 
+
+The logs can be viewed at the links provided at the end of this conversation
+
+To cancel the benchmark process comment **/benchmark cancel** .`
+
+		var resp string
+		if benchmarkOption == "pr" {
+			err := buildPRImage(c, ic)
+			if err != nil {
+				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "The creation of the docker image for this PR has failed."))
+				fmt.Errorf("Failed to create docker image on %s/%s#%d %v.", org, repo, number, err)
+				return err
+			}
+			resp = fmt.Sprintf(commentTemplate, "pull request")
+		} else {
+			resp = fmt.Sprintf(commentTemplate, "latest release")
+		}
+
 		c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
 	}
 	return nil
@@ -231,7 +233,7 @@ func buildPRImage(c client, ic github.IssueCommentEvent) error {
 	var benchmarkJob config.Presubmit
 	imageName := fmt.Sprintf("%s/prometheus-benchmark:pr-%d-ts-%s", projectName, number, time.Now().Format("20060102150405"))
 	for _, job := range c.Config.Presubmits[pr.Base.Repo.FullName] {
-		if job.Name == "start-benchmark" {
+		if job.Name == presubmitJobName {
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{"PROW_BENCHMARK_DOCKER_IMAGE": imageName})...)
 			benchmarkJob = job
 			break

@@ -32,7 +32,7 @@ presubmits:
   - name: start-benchmark
     context: start-benchmark
     always_run: false
-    skip_report: true
+    skip_report: false
     agent: kubernetes
     decorate: true
     path_alias: /github.com/prometheus/prometheus

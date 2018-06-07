@@ -2,11 +2,8 @@
 
 Follow the instructions to spawn a new cluster as mentioned [here](https://github.com/kubernetes/test-infra/blob/master/prow/getting_started.md)
 
-Create service-account
-kubectl create secret generic service-account --from-file=service-account.json=<PATH-TO-JSON-KEY-FILE>
-
-
-
+Create service-account secret
+`kubectl create secret generic service-account --from-file=service-account.json=<PATH-TO-JSON-KEY-FILE>`
 
 
 # Prow

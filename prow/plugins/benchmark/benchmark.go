@@ -41,7 +41,7 @@ const repoName = "sipian/prometheus"
 const projectName = "gcr.io/prometheus-test-204522"
 
 var (
-	benchmarkLabel    = "prow-benchmark"
+	benchmarkLabel    = "benchmark"
 	benchmarkRe       = regexp.MustCompile(`(?mi)^/benchmark\s+(release|pr)\s*$`)
 	benchmarkCancelRe = regexp.MustCompile(`(?mi)^/benchmark\s+cancel\s*$`)
 )
@@ -173,7 +173,7 @@ The links to view the ongoing benchmarking metrics will be provided in the logs.
 
 The logs can be viewed at the links provided at the end of this conversation
 
-To cancel the benchmark process run **/benchmark cancel**.`
+To cancel the benchmark process run **/benchmark cancel** .`
 
 		var resp string
 		if benchmarkOption == "pr" {

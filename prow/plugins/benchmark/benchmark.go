@@ -188,6 +188,22 @@ To cancel the benchmark process run **/benchmark cancel**.`
 			resp = fmt.Sprintf(commentTemplate, commentAuthor, "latest release")
 		}
 
+		// Delete the previous benchmarking comments
+		botname, err := c.GitHubClient.BotName()
+		if err != nil {
+			fmt.Errorf("Failed to get bot name.")
+		}
+		comments, err := c.GitHubClient.ListIssueComments(org, repo, number)
+		if err != nil {
+			fmt.Errorf("Failed to get the list of issue comments on %s/%s#%d.", org, repo, number)
+		}
+		for _, comment := range comments {
+			if comment.User.Login == botname && strings.Contains(comment.Body, "Welcome to Prometheus Benchmarking Tool") {
+				if err := c.GitHubClient.DeleteComment(org, repo, comment.ID); err != nil {
+					fmt.Errorf("Failed to delete comment from %s/%s#%d, ID:%d.", org, repo, number, comment.ID)
+				}
+			}
+		}
 		c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
 	}
 	return nil

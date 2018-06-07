@@ -165,13 +165,15 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 			return err
 		}
 
-		commentTemplate := `Hi @%s. Welcome to Prometheus Benchmarking Tool.
+		commentTemplate := `Welcome to Prometheus Benchmarking Tool.
 
-The two prometheus versions that will be compared are MASTER and %s
+The two prometheus versions that will be compared are _**master**_ and _**%s**_
 
-The links to view the ongoing benchmarking metrics will be provided in the logs. The logs can be viewed at the links provided at the end of this conversation
+The links to view the ongoing benchmarking metrics will be provided in the logs. 
 
-To cancel the benchmark process run **/benchmark release**.`
+The logs can be viewed at the links provided at the end of this conversation
+
+To cancel the benchmark process run **/benchmark cancel**.`
 
 		var resp string
 		if benchmarkOption == "pr" {
@@ -181,9 +183,9 @@ To cancel the benchmark process run **/benchmark release**.`
 				fmt.Errorf("Failed to create docker image on %s/%s#%d %v.", org, repo, number, err)
 				return err
 			}
-			resp = fmt.Sprintf(commentTemplate, commentAuthor, "PULL REQUEST")
+			resp = fmt.Sprintf(commentTemplate, commentAuthor, "pull request")
 		} else {
-			resp = fmt.Sprintf(commentTemplate, commentAuthor, "LATEST RELEASE")
+			resp = fmt.Sprintf(commentTemplate, commentAuthor, "latest release")
 		}
 
 		c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))

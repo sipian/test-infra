@@ -183,9 +183,9 @@ To cancel the benchmark process run **/benchmark cancel** .`
 				fmt.Errorf("Failed to create docker image on %s/%s#%d %v.", org, repo, number, err)
 				return err
 			}
-			resp = fmt.Sprintf(commentTemplate, commentAuthor, "pull request")
+			resp = fmt.Sprintf(commentTemplate, "pull request")
 		} else {
-			resp = fmt.Sprintf(commentTemplate, commentAuthor, "latest release")
+			resp = fmt.Sprintf(commentTemplate, "latest release")
 		}
 
 		// Delete the previous benchmarking comments

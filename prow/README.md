@@ -1,10 +1,22 @@
-# Prometheus
+## Prometheus
 
-Follow the instructions to spawn a new cluster as mentioned [here](https://github.com/kubernetes/test-infra/blob/master/prow/getting_started.md)
+This is the repository of the prow cluster used by [Prometheus](https://github.com/prometheus/Prometheus) for it's benchmarking tool.
 
-Create service-account secret
-`kubectl create secret generic service-account --from-file=service-account.json=<PATH-TO-JSON-KEY-FILE>`
+The benchmark plugin for Prometheus can be found [here](https://github.com/sipian/test-infra/tree/prometheus-prow/prow/plugins/benchmark)
 
+#### How To Run
+
+Follow the instructions given [here](https://github.com/kubernetes/test-infra/blob/master/prow/getting_started.md) to create a prow cluster.
+
+Create a `service-account` key in [GCP](https://cloud.google.com) and create a kubernetes secret with the json file <br>
+`kubectl create secret generic service-account --from-file=service-account.json=<PATH-TO-SERVICE_ACCOUNT-JSON-KEY-FILE>`
+
+Replace job_url_template in [config-prometheus.yaml](https://github.com/sipian/test-infra/tree/prometheus-prow/prow/config-prometheus.yaml) with the ingress IP of your cluster
+
+To push Prometheus Pull Request docker images, make your project Container Registry public and add your GCP project ID [here](https://github.com/sipian/test-infra/tree/prometheus-prow/prow/plugins/benchmark/benchmark.go#41)
+and [here](https://github.com/sipian/test-infra/tree/prometheus-prow/prow/Makefile#61)
+
+Install `bazel` and run `make update-config && make update-plugins && make hook`
 
 # Prow
 

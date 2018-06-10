@@ -18,15 +18,17 @@ plank:
 
 log_level: debug
 
-# periodics:
-# - interval: 10m
-#   agent: kubernetes
-#   name: echo-test
-#   spec:
-#     containers:
-#     - image: alpine:latest
-#       command: ["/bin/date"]
+periodics:
+- interval: 10m
+  agent: kubernetes
+  name: echo-test
+  spec:
+    containers:
+    - image: alpine:latest
+      command: ["/bin/date"]
 
+# These configurations are not for PR presubmits as used by the trigger plugin. 
+# These are used to create prowjobs for the benchmark plugin. 
 presubmits:
   sipian/prometheus:
   - name: build-PR-images
@@ -39,9 +41,9 @@ presubmits:
     spec:
       containers:
       - image: sipian/golang-builder:prow
+        imagePullPolicy: Always
         command:
         - "./prow/benchmark_build.sh"
-        imagePullPolicy: Always
         volumeMounts:
         - name: serviceaccount
           mountPath: /etc/serviceaccount
@@ -55,6 +57,66 @@ presubmits:
       - name: docker-sock 
         hostPath: 
             path: /var/run/docker.sock
+
+  sipian/prometheus:
+  - name: benchmark
+    context: benchmark
+    always_run: false
+    skip_report: false
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/prometheus-test-204522/prombench
+        imagePullPolicy: Always
+        env:
+         # these env values will be modified by the benchmark plugin
+        - name: CLUSTER_NAME
+          value: none
+        - name: PROMETHEUS_1_NAME
+          value: none
+        - name: PROMETHEUS_1_IMAGE
+          value: none
+        - name: PROMETHEUS_2_NAME
+          value: none
+        - name: PROMETHEUS_2_IMAGE
+          value: none
+        # these env values are constant 
+        - name: ZONE
+          value: us-east1-b
+        - name: PROJECT_NAME
+          value: prometheus-test-204522
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/serviceaccount/service-account.json
+        volumeMounts:
+        - name: serviceaccount
+          mountPath: /etc/serviceaccount/
+          readOnly: true
+      volumes:
+      - name: serviceaccount
+        secret:
+          secretName: service-account
+
+  sipian/prometheus:
+  - name: cancel-benchmark
+    context: cancel-benchmark
+    always_run: false
+    skip_report: false
+    agent: kubernetes
+    spec:
+      containers:
+      - image: sipian/golang-builder:prow
+        imagePullPolicy: Always
+        args:
+        - --project=prometheus-test-204522
+        - --zone=us-east1-b
+        volumeMounts:
+        - name: serviceaccount
+          mountPath: /etc/serviceaccount
+          readOnly: true
+      volumes:
+      - name: serviceaccount
+        secret:
+          secretName: service-account
   # sipian/prometheus:
   # - name: check-tests
   #   context: check-tests

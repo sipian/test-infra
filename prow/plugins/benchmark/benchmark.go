@@ -115,9 +115,11 @@ func handleIssueComment(pc plugins.PluginClient, ic github.IssueCommentEvent) er
 
 func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentEvent) error {
 	// Only consider PRs and new comments.
+	c.Logger.Infof("Inside benchmark plugin")
 	if ic.Issue.PullRequest == nil || ic.Action != github.IssueCommentActionCreated {
 		return nil
 	}
+	c.Logger.Infof("Started benchmark plugin")
 
 	org := ic.Repo.Owner.Login
 	repo := ic.Repo.Name
@@ -152,6 +154,7 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 			benchmarkOption = "release"
 		}
 	}
+	c.Logger.Infof("Checked repo status %s", benchmarkOption)
 
 	hasBenchmarkLabel := false
 	labels, err := c.GitHubClient.GetIssueLabels(org, repo, number)
@@ -164,6 +167,8 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 			break
 		}
 	}
+
+	c.Logger.Infof("Has label :: %d", hasBenchmarkLabel)
 
 	if wantBenchmark {
 		// Delete all the previous benchmarking comments to avoid confusion
@@ -182,6 +187,8 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 				}
 			}
 		}
+
+		c.Logger.Infof("Delete comments")
 
 		// Add benchmark label if not already there
 		if !hasBenchmarkLabel {

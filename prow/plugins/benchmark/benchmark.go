@@ -176,6 +176,7 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 		if err != nil {
 			fmt.Errorf("Failed to get bot name.")
 		}
+		c.Logger.Infof("BOTNAME : %s", botname)
 		comments, err := c.GitHubClient.ListIssueComments(org, repo, number)
 		if err != nil {
 			fmt.Errorf("Failed to get the list of issue comments on %s/%s#%d.", org, repo, number)

@@ -217,13 +217,14 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 				return err
 			}
 		}
+	} else {
+		if hasBenchmarkLabel {
+			c.Logger.Infof("Removing Benchmark label.")
+			//TODO Run prowjob to cancel benchmarking
+			return c.GitHubClient.RemoveLabel(org, repo, number, benchmarkLabel)
+		}
 	}
-
-	// if hasBenchmarkLabel && !wantBenchmark {
-	// 	c.Logger.Infof("Removing Benchmark label.")
-	// 	//TODO Run prowjob to cancel benchmarking
-	// 	return c.GitHubClient.RemoveLabel(org, repo, number, benchmarkLabel)
-	// } else if !hasBenchmarkLabel && wantBenchmark {
+	//  else if !hasBenchmarkLabel && wantBenchmark {
 
 	return nil
 }
@@ -319,7 +320,7 @@ func buildPRImage(c client, ic github.IssueCommentEvent) error {
 	}
 
 	var benchmarkJob config.Presubmit
-	imageName := fmt.Sprintf("%s/prometheus-benchmark:pr-%d", projectName, number)
+	imageName := fmt.Sprintf("%s/prombench-PR-image:pr-%d", projectName, number)
 	for _, job := range c.Config.Presubmits[pr.Base.Repo.FullName] {
 		if job.Name == buildPRJobName {
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{"PROW_BENCHMARK_DOCKER_IMAGE": imageName})...)

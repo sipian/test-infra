@@ -131,7 +131,7 @@ hook-service: get-cluster-credentials
 bump:
 	./bump.sh hook
 
-hook: bump hook-image #hook-deployment
+hook: bump hook-image hook-deployment
 
 prometheus_style:
 	@echo ">> checking code style"

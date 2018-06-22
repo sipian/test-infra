@@ -40,6 +40,9 @@ gs://istio-prow/:
 gs://istio-circleci/:
   contact: "chxchx"
   prefix: ""
-gs://kubernetes-openstack/:
+gs://k8s-conformance-openstack/:
   contact: "kiwik"
+  prefix: ""
+gs://k8s-conformance-gardener:
+  contact: "rolpat"
   prefix: ""

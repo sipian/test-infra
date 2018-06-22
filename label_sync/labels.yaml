@@ -28,6 +28,7 @@ labels:
     target: both
     previously:
       - name: close/duplicate
+      - name: duplicate
     addedBy: humans
   - color: d455d0
     description: Indicates an issue needs more information in order to work on it.
@@ -44,10 +45,21 @@ labels:
     target: both
     addedBy: humans
   - color: d455d0
-    description: Indicates an issue that can not be resolved.
+    description: Indicates an issue that is a support question.
+    name: triage/support
+    previously:
+      - name: close/support
+      - name: kind/support
+      - name: question
+    target: both
+    addedBy: humans
+  - color: d455d0
+    description: Indicates an issue that can not or will not be resolved.
     name: triage/unresolved
     previously:
       - name: close/unresolved
+      - name: invalid
+      - name: wontfix
     target: both
     addedBy: humans
   - color: c0ff4a
@@ -97,6 +109,12 @@ labels:
     prowPlugin: hold
     addedBy: anyone
   - color: e11d21
+    description: Indicates that a PR should not merge because it has an invalid OWNERS file in it.
+    name: do-not-merge/invalid-owners-file
+    target: prs
+    prowPlugin: verify-owners
+    addedBy: prow
+  - color: e11d21
     description: Indicates that a PR should not merge because it's missing one of the release note labels.
     name: do-not-merge/release-note-label-needed
     previously:
@@ -110,18 +128,39 @@ labels:
     target: prs
     prowPlugin: wip
     addedBy: prow
+  - color: 7057ff
+    description: Denotes an issue ready for a new contributor, according to the "help wanted" guidelines.
+    name: 'good first issue'
+    previously:
+      - name: for-new-contributors
+    target: issues
+    prowPlugin: help
+    addedBy: anyone
   - color: 006b75
     description: Denotes an issue that needs help from a contributor. Must meet "help wanted" guidelines.
     name: 'help wanted'
     previously:
       - name: help-wanted
-      - name: for-new-contributors
     target: issues
     prowPlugin: help
     addedBy: anyone
   - color: e11d21
     description: Categorizes issue or PR as related to a bug.
     name: kind/bug
+    previously:
+      - name: bug
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: c7def8
+    description: Categorizes issue or PR as related to cleaning up code, process, or technical debt.
+    name: kind/cleanup
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: c7def8
+    description: Categorizes issue or PR as related to design.
+    name: kind/design
     target: both
     prowPlugin: label
     addedBy: anyone
@@ -134,6 +173,15 @@ labels:
   - color: c7def8
     description: Categorizes issue or PR as related to a new feature.
     name: kind/feature
+    previously:
+      - name: enhancement
+      - name: kind/enhancement
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: f7c6c7
+    description: Categorizes issue or PR as related to a flaky test.
+    name: kind/flake
     target: both
     prowPlugin: label
     addedBy: anyone
@@ -323,6 +371,12 @@ labels:
     prowPlugin: label
     addedBy: anyone
   - color: d2b48c
+    description: Categorizes an issue or PR as relevant to sig-cloud-provider.
+    name: sig/cloud-provider
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: d2b48c
     description: Categorizes an issue or PR as relevant to sig-cluster-lifecycle.
     name: sig/cluster-lifecycle
     target: both
@@ -398,6 +452,12 @@ labels:
     prowPlugin: label
     addedBy: anyone
   - color: d2b48c
+    description: Categorizes an issue or PR as relevant to sig-pm.
+    name: sig/pm
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: d2b48c
     description: Categorizes an issue or PR as relevant to sig-release.
     name: sig/release
     target: both
@@ -448,6 +508,66 @@ labels:
   - color: d2b48c
     description: Categorizes an issue or PR as relevant to sig-windows.
     name: sig/windows
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: d2b48c
+    description: Categorizes an issue or PR as relevant to wg-app-def.
+    name: wg/app-def
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: d2b48c
+    description: Categorizes an issue or PR as relevant to wg-apply.
+    name: wg/apply
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: d2b48c
+    description: Categorizes an issue or PR as relevant to wg-cluster-api.
+    name: wg/cluster-api
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: d2b48c
+    description: Categorizes an issue or PR as relevant to wg-container-identity.
+    name: wg/container-identity
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: d2b48c
+    description: Categorizes an issue or PR as relevant to wg-iot-edge.
+    name: wg/iot-edge
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: d2b48c
+    description: Categorizes an issue or PR as relevant to wg-kubeadm-adoption.
+    name: wg/kubeadm-adoption
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: d2b48c
+    description: Categorizes an issue or PR as relevant to wg-machine-learning.
+    name: wg/machine-learning
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: d2b48c
+    description: Categorizes an issue or PR as relevant to wg-multitenancy.
+    name: wg/multitenancy
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: d2b48c
+    description: Categorizes an issue or PR as relevant to wg-policy.
+    name: wg/policy
+    target: both
+    prowPlugin: label
+    addedBy: anyone
+  - color: d2b48c
+    description: Categorizes an issue or PR as relevant to wg-resource-management.
+    name: wg/resource-management
     target: both
     prowPlugin: label
     addedBy: anyone

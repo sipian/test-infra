@@ -25,15 +25,19 @@ larger set of contributors to apply/remove them.
 
 | Name | Description | Added By | Prow Plugin |
 | ---- | ----------- | -------- | --- |
-| <a id="triage/duplicate" href="#triage/duplicate">`triage/duplicate`</a> | Indicates an issue is a duplicate of other open issue. <br><br> This was previously `close/duplicate`, | humans | |
+| <a id="triage/duplicate" href="#triage/duplicate">`triage/duplicate`</a> | Indicates an issue is a duplicate of other open issue. <br><br> This was previously `close/duplicate`, `duplicate`, | humans | |
 | <a id="triage/needs-information" href="#triage/needs-information">`triage/needs-information`</a> | Indicates an issue needs more information in order to work on it. <br><br> This was previously `close/needs-information`, | humans | |
 | <a id="triage/not-reproducible" href="#triage/not-reproducible">`triage/not-reproducible`</a> | Indicates an issue can not be reproduced as described. <br><br> This was previously `close/not-reproducible`, | humans | |
-| <a id="triage/unresolved" href="#triage/unresolved">`triage/unresolved`</a> | Indicates an issue that can not be resolved. <br><br> This was previously `close/unresolved`, | humans | |
+| <a id="triage/support" href="#triage/support">`triage/support`</a> | Indicates an issue that is a support question. <br><br> This was previously `close/support`, `kind/support`, `question`, | humans | |
+| <a id="triage/unresolved" href="#triage/unresolved">`triage/unresolved`</a> | Indicates an issue that can not or will not be resolved. <br><br> This was previously `close/unresolved`, `invalid`, `wontfix`, | humans | |
 | <a id="committee/conduct" href="#committee/conduct">`committee/conduct`</a> | Denotes an issue or PR intended to be handled by the code of conduct committee.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="committee/steering" href="#committee/steering">`committee/steering`</a> | Denotes an issue or PR intended to be handled by the steering committee.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
-| <a id="kind/bug" href="#kind/bug">`kind/bug`</a> | Categorizes issue or PR as related to a bug.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="kind/bug" href="#kind/bug">`kind/bug`</a> | Categorizes issue or PR as related to a bug. <br><br> This was previously `bug`, | anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="kind/cleanup" href="#kind/cleanup">`kind/cleanup`</a> | Categorizes issue or PR as related to cleaning up code, process, or technical debt.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="kind/design" href="#kind/design">`kind/design`</a> | Categorizes issue or PR as related to design.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="kind/documentation" href="#kind/documentation">`kind/documentation`</a> | Categorizes issue or PR as related to documentation.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
-| <a id="kind/feature" href="#kind/feature">`kind/feature`</a> | Categorizes issue or PR as related to a new feature.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="kind/feature" href="#kind/feature">`kind/feature`</a> | Categorizes issue or PR as related to a new feature. <br><br> This was previously `enhancement`, `kind/enhancement`, | anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="kind/flake" href="#kind/flake">`kind/flake`</a> | Categorizes issue or PR as related to a flaky test.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="lifecycle/frozen" href="#lifecycle/frozen">`lifecycle/frozen`</a> | Indicates that an issue or PR should not be auto-closed due to staleness. <br><br> This was previously `keep-open`, | anyone |  [lifecycle](https://git.k8s.io/test-infra/prow/plugins/lifecycle) |
 | <a id="lifecycle/rotten" href="#lifecycle/rotten">`lifecycle/rotten`</a> | Denotes an issue or PR that has aged beyond stale and will be auto-closed.| anyone or [@fejta-bot](https://github.com/fejta-bot) via [periodic-test-infra-rotten prowjob](https://prow.k8s.io/?job=periodic-test-infra-rotten) |  [lifecycle](https://git.k8s.io/test-infra/prow/plugins/lifecycle) |
 | <a id="lifecycle/stale" href="#lifecycle/stale">`lifecycle/stale`</a> | Denotes an issue or PR has remained open with no activity and has become stale. <br><br> This was previously `stale`, | anyone or [@fejta-bot](https://github.com/fejta-bot) via [periodic-test-infra-stale prowjob](https://prow.k8s.io/?job=periodic-test-infra-stale) |  [lifecycle](https://git.k8s.io/test-infra/prow/plugins/lifecycle) |
@@ -52,6 +56,7 @@ larger set of contributors to apply/remove them.
 | <a id="sig/azure" href="#sig/azure">`sig/azure`</a> | Categorizes an issue or PR as relevant to sig-azure.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="sig/big-data" href="#sig/big-data">`sig/big-data`</a> | Categorizes an issue or PR as relevant to sig-big-data.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="sig/cli" href="#sig/cli">`sig/cli`</a> | Categorizes an issue or PR as relevant to sig-cli.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="sig/cloud-provider" href="#sig/cloud-provider">`sig/cloud-provider`</a> | Categorizes an issue or PR as relevant to sig-cloud-provider.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="sig/cluster-lifecycle" href="#sig/cluster-lifecycle">`sig/cluster-lifecycle`</a> | Categorizes an issue or PR as relevant to sig-cluster-lifecycle.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="sig/cluster-ops" href="#sig/cluster-ops">`sig/cluster-ops`</a> | Categorizes an issue or PR as relevant to sig-cluster-ops.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="sig/contributor-experience" href="#sig/contributor-experience">`sig/contributor-experience`</a> | Categorizes an issue or PR as relevant to sig-contributor-experience.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
@@ -64,6 +69,7 @@ larger set of contributors to apply/remove them.
 | <a id="sig/node" href="#sig/node">`sig/node`</a> | Categorizes an issue or PR as relevant to sig-node.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="sig/onprem" href="#sig/onprem">`sig/onprem`</a> | Categorizes an issue or PR as relevant to sig-onprem.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="sig/openstack" href="#sig/openstack">`sig/openstack`</a> | Categorizes an issue or PR as relevant to sig-openstack.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="sig/pm" href="#sig/pm">`sig/pm`</a> | Categorizes an issue or PR as relevant to sig-pm.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="sig/release" href="#sig/release">`sig/release`</a> | Categorizes an issue or PR as relevant to sig-release.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="sig/scalability" href="#sig/scalability">`sig/scalability`</a> | Categorizes an issue or PR as relevant to sig-scalability.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="sig/scheduling" href="#sig/scheduling">`sig/scheduling`</a> | Categorizes an issue or PR as relevant to sig-scheduling.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
@@ -73,6 +79,16 @@ larger set of contributors to apply/remove them.
 | <a id="sig/ui" href="#sig/ui">`sig/ui`</a> | Categorizes an issue or PR as relevant to sig-ui.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="sig/vmware" href="#sig/vmware">`sig/vmware`</a> | Categorizes an issue or PR as relevant to sig-vmware.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="sig/windows" href="#sig/windows">`sig/windows`</a> | Categorizes an issue or PR as relevant to sig-windows.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="wg/app-def" href="#wg/app-def">`wg/app-def`</a> | Categorizes an issue or PR as relevant to wg-app-def.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="wg/apply" href="#wg/apply">`wg/apply`</a> | Categorizes an issue or PR as relevant to wg-apply.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="wg/cluster-api" href="#wg/cluster-api">`wg/cluster-api`</a> | Categorizes an issue or PR as relevant to wg-cluster-api.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="wg/container-identity" href="#wg/container-identity">`wg/container-identity`</a> | Categorizes an issue or PR as relevant to wg-container-identity.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="wg/iot-edge" href="#wg/iot-edge">`wg/iot-edge`</a> | Categorizes an issue or PR as relevant to wg-iot-edge.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="wg/kubeadm-adoption" href="#wg/kubeadm-adoption">`wg/kubeadm-adoption`</a> | Categorizes an issue or PR as relevant to wg-kubeadm-adoption.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="wg/machine-learning" href="#wg/machine-learning">`wg/machine-learning`</a> | Categorizes an issue or PR as relevant to wg-machine-learning.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="wg/multitenancy" href="#wg/multitenancy">`wg/multitenancy`</a> | Categorizes an issue or PR as relevant to wg-multitenancy.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="wg/policy" href="#wg/policy">`wg/policy`</a> | Categorizes an issue or PR as relevant to wg-policy.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
+| <a id="wg/resource-management" href="#wg/resource-management">`wg/resource-management`</a> | Categorizes an issue or PR as relevant to wg-resource-management.| anyone |  [label](https://git.k8s.io/test-infra/prow/plugins/label) |
 | <a id="status/approved-for-milestone" href="#status/approved-for-milestone">`status/approved-for-milestone`</a> | Used during release burndown. Denotes an issue or PR is approved to be part of the release <br><br> This was previously `approved-for-milestone`, | [@kubernetes/kubernetes-milestone-maintainers](https://github.com/orgs/kubernetes/teams/kubernetes-milestone-maintainers/members) |  [milestonestatus](https://git.k8s.io/test-infra/prow/plugins/milestonestatus) |
 | <a id="status/in-progress" href="#status/in-progress">`status/in-progress`</a> | Used during release burndown. Denotes that an issue is actively being worked.| [@kubernetes/kubernetes-milestone-maintainers](https://github.com/orgs/kubernetes/teams/kubernetes-milestone-maintainers/members) |  [milestonestatus](https://git.k8s.io/test-infra/prow/plugins/milestonestatus) |
 | <a id="status/in-review" href="#status/in-review">`status/in-review`</a> | Used during release burndown. Denotes that a fix for an issue is actively being reviewed.| [@kubernetes/kubernetes-milestone-maintainers](https://github.com/orgs/kubernetes/teams/kubernetes-milestone-maintainers/members) |  [milestonestatus](https://git.k8s.io/test-infra/prow/plugins/milestonestatus) |
@@ -90,6 +106,7 @@ larger set of contributors to apply/remove them.
 | <a id="do-not-merge/blocked-paths" href="#do-not-merge/blocked-paths">`do-not-merge/blocked-paths`</a> | Indicates that a PR should not merge because it touches files in blocked paths.| prow |  [blockade](https://git.k8s.io/test-infra/prow/plugins/blockade) |
 | <a id="do-not-merge/cherry-pick-not-approved" href="#do-not-merge/cherry-pick-not-approved">`do-not-merge/cherry-pick-not-approved`</a> | Indicates that a PR is not yet approved to merge into a release branch.| mungegithub cherrypick-label-unapproved munger | |
 | <a id="do-not-merge/hold" href="#do-not-merge/hold">`do-not-merge/hold`</a> | Indicates that a PR should not merge because someone has issued a /hold command.| anyone |  [hold](https://git.k8s.io/test-infra/prow/plugins/hold) |
+| <a id="do-not-merge/invalid-owners-file" href="#do-not-merge/invalid-owners-file">`do-not-merge/invalid-owners-file`</a> | Indicates that a PR should not merge because it has an invalid OWNERS file in it.| prow |  [verify-owners](https://git.k8s.io/test-infra/prow/plugins/verify-owners) |
 | <a id="do-not-merge/release-note-label-needed" href="#do-not-merge/release-note-label-needed">`do-not-merge/release-note-label-needed`</a> | Indicates that a PR should not merge because it's missing one of the release note labels. <br><br> This was previously `release-note-label-needed`, | prow |  [releasenote](https://git.k8s.io/test-infra/prow/plugins/releasenote) |
 | <a id="do-not-merge/work-in-progress" href="#do-not-merge/work-in-progress">`do-not-merge/work-in-progress`</a> | Indicates that a PR should not merge because it is a work in progress.| prow |  [wip](https://git.k8s.io/test-infra/prow/plugins/wip) |
 | <a id="lgtm" href="#lgtm">`lgtm`</a> | Indicates that a PR is ready to be merged.| reviewers or members |  [lgtm](https://git.k8s.io/test-infra/prow/plugins/lgtm) |
@@ -115,7 +132,8 @@ larger set of contributors to apply/remove them.
 
 | Name | Description | Added By | Prow Plugin |
 | ---- | ----------- | -------- | --- |
-| <a id="help wanted" href="#help wanted">`help wanted`</a> | Denotes an issue that needs help from a contributor. Must meet "help wanted" guidelines. <br><br> This was previously `help-wanted`, `for-new-contributors`, | anyone |  [help](https://git.k8s.io/test-infra/prow/plugins/help) |
+| <a id="good first issue" href="#good first issue">`good first issue`</a> | Denotes an issue ready for a new contributor, according to the "help wanted" guidelines. <br><br> This was previously `for-new-contributors`, | anyone |  [help](https://git.k8s.io/test-infra/prow/plugins/help) |
+| <a id="help wanted" href="#help wanted">`help wanted`</a> | Denotes an issue that needs help from a contributor. Must meet "help wanted" guidelines. <br><br> This was previously `help-wanted`, | anyone |  [help](https://git.k8s.io/test-infra/prow/plugins/help) |
 | <a id="needs-sig" href="#needs-sig">`needs-sig`</a> | Indicates an issue lacks a `sig/foo` label and requires one.| prow |  [requiresig](https://git.k8s.io/test-infra/prow/plugins/requiresig) |
 
 

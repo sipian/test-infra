@@ -1,6 +1,7 @@
 # Plugin repository whitelist.
 # Keys: Full repo name: "org/repo".
 # Values: List of plugins to run against the repo.
+---
 triggers:
 - repos:
   - kubernetes
@@ -59,6 +60,7 @@ approve:
   lgtm_acts_as_approve: true
 - repos:
   - kubernetes-sigs
+  - client-go/unofficial-docs
   implicit_self_approve: true
 
 blockades:
@@ -108,6 +110,7 @@ slack:
   mergewarnings:
   - repos:
     - kubernetes/community
+    - kubernetes/org
     channels:
     - sig-contribex
     whitelist:
@@ -239,6 +242,7 @@ plugins:
 
   kubernetes/features:
   - approve
+  - stage
 
   kubernetes/ingress-gce:
   - trigger
@@ -303,6 +307,12 @@ plugins:
   - approve
   - blunderbuss
 
+  kubernetes/org:
+  - approve
+  - blunderbuss
+  - owners-label
+  - require-sig
+
   kubernetes/perf-tests:
   - approve
   - blunderbuss
@@ -315,14 +325,16 @@ plugins:
 
   kubernetes/sig-release:
   - approve
+  - stage
 
   kubernetes/steering:
   - approve
 
   kubernetes/test-infra:
-  - trigger
-  - config-updater
   - approve
+  - config-updater
+  - trigger
+  - verify-owners
 
   kubernetes/website:
   - approve
@@ -355,6 +367,28 @@ plugins:
   - lgtm
   - lifecycle
   - size
+
+  kubernetes-client:
+  - assign
+  - cla
+  - label
+  - lgtm
+  - lifecycle
+  - size
+  - wip
+  - hold
+  - help
+  - cat
+  - dog
+
+  kubernetes-incubator/service-catalog:
+  - cat
+  - dog
+  - help
+  - blunderbuss
+  - wip
+  - hold
+  - approve
 
   kubernetes-sigs:
   - assign
@@ -425,6 +459,20 @@ plugins:
   GoogleCloudPlatform/k8s-multicluster-ingress:
   - trigger
 
+  client-go/unofficial-docs:
+  - assign
+  - approve
+  - lgtm
+  - approve
+  - label
+  - cla
+  - cat
+  - dog
+  - help
+  - blunderbuss
+  - wip
+  - hold
+
 external_plugins:
   kubernetes/community:
   - name: needs-rebase
@@ -442,7 +490,15 @@ external_plugins:
   - name: needs-rebase
     events:
       - pull_request
+  kubernetes/org:
+  - name: needs-rebase
+    events:
+      - pull_request
   kubernetes/test-infra:
+  - name: needs-rebase
+    events:
+      - pull_request
+  client-go/unofficial-docs:
   - name: needs-rebase
     events:
       - pull_request

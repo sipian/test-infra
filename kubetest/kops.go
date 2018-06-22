@@ -38,6 +38,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"golang.org/x/crypto/ssh"
+	"k8s.io/test-infra/kubetest/e2e"
 	"k8s.io/test-infra/kubetest/util"
 )
 
@@ -338,13 +339,13 @@ func (k kops) Up() error {
 	// If we downloaded kubernetes, pass that version to kops
 	if k.kubeVersion == "" {
 		// TODO(justinsb): figure out a refactor that allows us to get this from acquireKubernetes cleanly
-		kubeReleaseUrl := os.Getenv("KUBERNETES_RELEASE_URL")
+		kubeReleaseURL := os.Getenv("KUBERNETES_RELEASE_URL")
 		kubeRelease := os.Getenv("KUBERNETES_RELEASE")
-		if kubeReleaseUrl != "" && kubeRelease != "" {
-			if !strings.HasSuffix(kubeReleaseUrl, "/") {
-				kubeReleaseUrl += "/"
+		if kubeReleaseURL != "" && kubeRelease != "" {
+			if !strings.HasSuffix(kubeReleaseURL, "/") {
+				kubeReleaseURL += "/"
 			}
-			k.kubeVersion = kubeReleaseUrl + kubeRelease
+			k.kubeVersion = kubeReleaseURL + kubeRelease
 		}
 	}
 
@@ -533,6 +534,39 @@ func (k kops) TestSetup() error {
 	return nil
 }
 
+// BuildTester returns a standard ginkgo-script tester, except for GCE where we build an e2e.Tester
+func (k kops) BuildTester(o *e2e.BuildTesterOptions) (e2e.Tester, error) {
+	// Start by only enabling this on GCE
+	if !k.isGoogleCloud() {
+		return &GinkgoScriptTester{}, nil
+	}
+
+	log.Printf("running ginkgo tests directly")
+
+	t := e2e.NewGinkgoTester(o)
+	t.KubeRoot = "."
+
+	t.Kubeconfig = k.kubecfg
+	t.Provider = k.provider
+
+	if k.provider == "gce" {
+		t.GCEProject = k.gcpProject
+		if len(k.zones) > 0 {
+			zone := k.zones[0]
+			t.GCEZone = zone
+
+			// us-central1-a => us-central1
+			lastDash := strings.LastIndex(zone, "-")
+			if lastDash == -1 {
+				return nil, fmt.Errorf("unexpected format for GCE zone: %q", zone)
+			}
+			t.GCERegion = zone[0:lastDash]
+		}
+	}
+
+	return t, nil
+}
+
 func (k kops) Down() error {
 	// We do a "kops get" first so the exit status of "kops delete" is
 	// more sensical in the case of a non-existent cluster. ("kops
@@ -556,7 +590,7 @@ type kopsDump struct {
 
 // String implements fmt.Stringer
 func (o *kopsDump) String() string {
-	return util.JsonForDebug(o)
+	return util.JSONForDebug(o)
 }
 
 // kopsDumpInstance is the format of an instance (machine) in a kops dump
@@ -567,7 +601,7 @@ type kopsDumpInstance struct {
 
 // String implements fmt.Stringer
 func (o *kopsDumpInstance) String() string {
-	return util.JsonForDebug(o)
+	return util.JSONForDebug(o)
 }
 
 // runKopsDump runs a kops toolbox dump to dump the status of the cluster
@@ -589,6 +623,9 @@ func (k *kops) runKopsDump() (*kopsDump, error) {
 // kops deployer implements publisher
 var _ publisher = &kops{}
 
+// kops deployer implements e2e.TestBuilder
+var _ e2e.TestBuilder = &kops{}
+
 // Publish will publish a success file, it is called if the tests were successful
 func (k kops) Publish() error {
 	if k.kopsPublish == "" {
@@ -600,7 +637,7 @@ func (k kops) Publish() error {
 		return errors.New("kops-version not set; cannot publish")
 	}
 
-	return control.XmlWrap(&suite, "Publish kops version", func() error {
+	return control.XMLWrap(&suite, "Publish kops version", func() error {
 		log.Printf("Set %s version to %s", k.kopsPublish, k.kopsVersion)
 		return gcsWrite(k.kopsPublish, []byte(k.kopsVersion))
 	})

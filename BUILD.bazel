@@ -28,17 +28,22 @@ workspace_binary(
     cmd = "//vendor/github.com/golang/dep/cmd/dep",
 )
 
+workspace_binary(
+    name = "golint",
+    cmd = "//vendor/github.com/golang/lint/golint",
+)
+
 filegroup(
     name = "all-srcs",
     srcs = [
         ":package-srcs",
         "//autogo:all-srcs",
         "//boskos:all-srcs",
+        "//config:all-srcs",
         "//def:all-srcs",
         "//dind/cmd/cluster-up:all-srcs",
         "//dind/pkg/cluster-up/cluster:all-srcs",
         "//dind/pkg/cluster-up/options:all-srcs",
-        "//dind/pkg/util:all-srcs",
         "//experiment:all-srcs",
         "//gcsweb/cmd/gcsweb:all-srcs",
         "//gcsweb/pkg/version:all-srcs",

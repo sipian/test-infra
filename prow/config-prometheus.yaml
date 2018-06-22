@@ -33,7 +33,7 @@ presubmits:
   sipian/prometheus:
   - name: build-PR-images
     context: build-PR-images
-    always_run: false
+    always_run: true
     skip_report: false
     agent: kubernetes
     decorate: true
@@ -63,7 +63,7 @@ presubmits:
   sipian/prometheus:
   - name: start-benchmark
     context: start-benchmark
-    always_run: false
+    always_run: true
     skip_report: false
     agent: kubernetes
     spec:
@@ -91,7 +91,7 @@ presubmits:
   sipian/prometheus:
   - name: cancel-benchmark
     context: cancel-benchmark
-    always_run: false
+    always_run: true
     skip_report: false
     agent: kubernetes
     spec:

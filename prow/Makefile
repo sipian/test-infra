@@ -61,7 +61,7 @@ ARTIFACT-UPLOADER_VERSION ?= $(TAG)
 PROJECT       ?= prometheus-test-204522
 BUILD_PROJECT ?= k8s-prow-builds
 ZONE          ?= us-east1-b
-CLUSTER       ?= prow
+CLUSTER       ?= prombench
 
 # Build and push specific variables.
 REGISTRY ?= gcr.io

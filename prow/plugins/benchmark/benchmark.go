@@ -219,23 +219,22 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench cluster failed: %v", err)))
 				return err
 			}
+		} else {
+			err := buildPRImage(c, ic)
+			if err != nil {
+				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "The creation of the docker image for this PR has failed."))
+				fmt.Errorf("Failed to create docker image on %s/%s#%d %v.", org, repo, number, err)
+				return err
+			}
+			// resp = fmt.Sprintf(commentTemplate, "pr")
+			// c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
+			// err := startBenchmark(c, ic, "master", "quay.io/prometheus/prometheus:master", fmt.Sprintf("pr-%d", number), fmt.Sprintf("%s/prombench-PR-image:pr-%d", projectName, number))
+			// c.Logger.Infof("Function returned.")
+			// if err != nil {
+			// 	c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench cluster failed: %v", err)))
+			// 	return err
+			// }
 		}
-		// else {
-		// 	err := buildPRImage(c, ic)
-		// 	if err != nil {
-		// 		c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "The creation of the docker image for this PR has failed."))
-		// 		fmt.Errorf("Failed to create docker image on %s/%s#%d %v.", org, repo, number, err)
-		// 		return err
-		// 	}
-		// 	resp = fmt.Sprintf(commentTemplate, "pr")
-		// 	c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
-		// 	err := startBenchmark(c, ic, "master", "quay.io/prometheus/prometheus:master", fmt.Sprintf("pr-%d", number), fmt.Sprintf("%s/prombench-PR-image:pr-%d", projectName, number))
-		// 	c.Logger.Infof("Function returned.")
-		// 	if err != nil {
-		// 		c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench cluster failed: %v", err)))
-		// 		return err
-		// 	}
-		// }
 
 	} else {
 		if hasBenchmarkLabel {

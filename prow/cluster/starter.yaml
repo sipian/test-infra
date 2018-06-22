@@ -38,7 +38,7 @@ kind: ConfigMap
 metadata:
   name: config
 data:
-  config: |
+  config.yaml: |
     periodics:
     - interval: 10m
       agent: kubernetes
@@ -184,7 +184,7 @@ spec:
       serviceAccountName: prow
       containers:
       - name: plank
-        image: gcr.io/k8s-prow/plank:v20180529-e9431eaa3
+        image: gcr.io/k8s-prow/plank:v20180620-3b98af6f3
         args:
         - --dry-run=false
         volumeMounts:
@@ -220,7 +220,7 @@ spec:
       serviceAccountName: prow
       containers:
       - name: sinker
-        image: gcr.io/k8s-prow/sinker:v20180529-e9431eaa3
+        image: gcr.io/k8s-prow/sinker:v20180620-3b98af6f3
         volumeMounts:
         - name: config
           mountPath: /etc/config
@@ -254,7 +254,7 @@ spec:
       serviceAccountName: prow
       containers:
       - name: deck
-        image: gcr.io/k8s-prow/deck:v20180529-e9431eaa3
+        image: gcr.io/k8s-prow/deck:v20180620-3b98af6f3
         args:
         - --hook-url=http://hook:8888/plugin-help
         ports:
@@ -300,7 +300,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: horologium
-        image: gcr.io/k8s-prow/horologium:v20180529-e9431eaa3
+        image: gcr.io/k8s-prow/horologium:v20180620-3b98af6f3
         volumeMounts:
         - name: config
           mountPath: /etc/config

@@ -29,9 +29,10 @@ kind: ConfigMap
 metadata:
   name: plugins
 data:
-  plugins: |
-    sipian/prometheus:
-    - benchmark
+  plugins.yaml: |
+    plugins:
+      sipian/prometheus:
+      - benchmark
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -121,7 +122,7 @@ spec:
       terminationGracePeriodSeconds: 180
       containers:
       - name: hook
-        image: gcr.io/prometheus-test-204522/hook:v20180622-stat-239-gf1c5f81cf
+        image: gcr.io/prometheus-test-204522/hook:v20180622-stat-594-g75663a32b
         imagePullPolicy: Always
         args:
         - --dry-run=false

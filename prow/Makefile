@@ -70,10 +70,10 @@ PUSH     ?= docker push
 DOCKER_LABELS=--label io.k8s.prow.git-describe="$(shell git describe --tags --always)"
 
 update-config: get-cluster-credentials
-	kubectl create configmap config --from-file=config=config-prometheus.yaml --dry-run -o yaml | kubectl replace configmap config -f -
+	kubectl create configmap config --from-file=config.yaml=config-prometheus.yaml --dry-run -o yaml | kubectl replace configmap config -f -
 
 update-plugins: get-cluster-credentials
-	kubectl create configmap plugins --from-file=plugins=plugins-prometheus.yaml --dry-run -o yaml | kubectl replace configmap plugins -f -
+	kubectl create configmap plugins --from-file=plugins.yaml=plugins-prometheus.yaml --dry-run -o yaml | kubectl replace configmap plugins -f -
 
 update-cat-api-key: get-cluster-credentials
 	kubectl create configmap cat-api-key --from-file=api-key=plugins/cat/api-key --dry-run -o yaml | kubectl replace configmap cat-api-key -f -

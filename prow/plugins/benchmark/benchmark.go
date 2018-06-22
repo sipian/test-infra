@@ -285,12 +285,14 @@ func startBenchmark(c client, ic github.IssueCommentEvent, prometheus1Name strin
 	for _, job := range c.Config.Presubmits[pr.Base.Repo.FullName] {
 		if job.Name == benchmarkName {
 			// Add environment variables telling which version to benchmark
+			c.Logger.Debugf("Inside")
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPRNumber: strconv.Itoa(number)})...)
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus1Name: prometheus1Name})...)
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus1Image: prometheus1Image})...)
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus2Name: prometheus2Name})...)
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus2Image: prometheus2Image})...)
 			benchmark = job
+
 			break
 		}
 	}

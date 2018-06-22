@@ -131,7 +131,11 @@ hook-service: get-cluster-credentials
 bump:
 	./bump.sh hook
 
+style: prometheus_style staticcheck unused test build
 hook: bump hook-image hook-deployment
+config: bazel-check-config update-config update-plugins
+comment: 
+	bazel run //prow/cmd/phony -- --address=http://35.227.204.14/hook --hmac=880a9aa4f2ac52faa6801eed4fb8f9bb1ced5799 --event=issue_comment --payload=/home/harsh/go/src/k8s.io/test-infra/prow/open_pr.json
 
 prometheus_style:
 	@echo ">> checking code style"
@@ -145,16 +149,9 @@ unused: $(GOVENDOR)
 	@echo ">> running check for unused packages"
 	@$(GOVENDOR) list +unused | grep . && exit 1 || echo 'No unused packages'
 
-style: prometheus_style staticcheck unused test build
-
 bazel-check-config:
 	bazel run //prow/cmd/config -- --config-path=/home/harsh/go/src/k8s.io/test-infra/prow/config-prometheus.yaml
 	bazel run //prow/cmd/config -- --plugin-config=/home/harsh/go/src/k8s.io/test-infra/prow/plugins-prometheus.yaml
-
-config: bazel-check-config update-config update-plugins
-
-comment: 
-	bazel run //prow/cmd/phony -- --address=http://35.227.204.14/hook --hmac=880a9aa4f2ac52faa6801eed4fb8f9bb1ced5799 --event=issue_comment --payload=/home/harsh/go/src/k8s.io/test-infra/prow/open_pr.json
 
 .PHONY:  bump hook prometheus_style staticcheck unused style bazel-check-config config comment
 

@@ -11,7 +11,7 @@ plank:
       sidecar: "registry.svc.ci.openshift.org/ci/sidecar:latest"
     gcs_configuration:
       bucket: "prometheus-prow"
-      path_strategy: "legacy"
+      path_strategy: "explicit"
       default_org: "sipian"
       default_repo: "prometheus"
     gcs_credentials_secret: "service-account"
@@ -73,6 +73,8 @@ presubmits:
         env:
         - name: ZONE
           value: us-east1-b
+        - name: CLUSTER_NAME
+          value: prombench
         volumeMounts:
         - name: serviceaccount
           mountPath: /etc/serviceaccount/
@@ -97,6 +99,8 @@ presubmits:
         env:
         - name: ZONE
           value: us-east1-b
+        - name: CLUSTER_NAME
+          value: prombench
         volumeMounts:
         - name: serviceaccount
           mountPath: /etc/serviceaccount/

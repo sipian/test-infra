@@ -18,14 +18,14 @@ plank:
 
 log_level: debug
 
-periodics:
-- interval: 10m
-  agent: kubernetes
-  name: echo-test
-  spec:
-    containers:
-    - image: alpine:latest
-      command: ["/bin/date"]
+# periodics:
+# - interval: 10m
+#   agent: kubernetes
+#   name: echo-test
+#   spec:
+#     containers:
+#     - image: alpine:latest
+#       command: ["/bin/date"]
 
 # These configurations are NOT for PR presubmits as used by the trigger plugin. 
 # These are used to create prowjobs for the benchmark plugin. 
@@ -57,6 +57,8 @@ presubmits:
       - name: docker-sock 
         hostPath: 
             path: /var/run/docker.sock
+      nodeSelector:
+        isolation: prow
 
   sipian/prometheus:
   - name: start-benchmark
@@ -83,6 +85,8 @@ presubmits:
       - name: serviceaccount
         secret:
           secretName: service-account
+      nodeSelector:
+        isolation: prow
 
   sipian/prometheus:
   - name: cancel-benchmark
@@ -109,6 +113,8 @@ presubmits:
       - name: serviceaccount
         secret:
           secretName: service-account
+      nodeSelector:
+        isolation: prow
 
   # sipian/prometheus:
   # - name: check-tests

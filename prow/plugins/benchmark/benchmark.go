@@ -223,16 +223,14 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 				fmt.Errorf("Failed to create docker image on %s/%s#%d %v.", org, repo, number, err)
 				return err
 			}
-			// resp = fmt.Sprintf(commentTemplate, "pr")
-			// c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
-			// err := startBenchmark(c, ic, "master", "quay.io/prometheus/prometheus:master", fmt.Sprintf("pr-%d", number), fmt.Sprintf("%s/prombench-PR-image:pr-%d", projectName, number))
-			// c.Logger.Infof("Function returned.")
-			// if err != nil {
-			// 	c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench cluster failed: %v", err)))
-			// 	return err
-			// }
+			resp = fmt.Sprintf(commentTemplate, "pr")
+			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
+			err = startBenchmark(c, ic, "master", "quay.io/prometheus/prometheus:master", fmt.Sprintf("pr-%d", number), fmt.Sprintf("%s/prombench-PR-image:pr-%d", projectName, number))
+			if err != nil {
+				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench cluster failed: %v", err)))
+				return err
+			}
 		}
-
 	} else {
 		if hasBenchmarkLabel {
 			c.Logger.Infof("Removing Benchmark label.")

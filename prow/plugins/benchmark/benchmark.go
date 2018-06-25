@@ -296,7 +296,7 @@ func triggerBenchmarkJob(c client, ic github.IssueCommentEvent, jobName string, 
 
 	labels[github.EventGUID] = ic.GUID
 	pj := pjutil.NewProwJob(pjutil.PresubmitSpec(benchmark, kr), labels)
-	c.Logger.WithFields(pjutil.ProwJobFields(&pj)).Info("Creating a new prowjob to %s", jobName)
+	c.Logger.WithFields(pjutil.ProwJobFields(&pj)).Info("Creating a new prowjob to ", jobName)
 	if _, err := c.KubeClient.CreateProwJob(pj); err != nil {
 		fmt.Errorf("Failed to Create %s ProwJob %v.", jobName, err)
 		return err
@@ -408,7 +408,7 @@ func waitForBenchmarkJobToEnd(c client, ic github.IssueCommentEvent, jobName str
 		}
 
 		if pj.Status.State == kube.TriggeredState || pj.Status.State == kube.PendingState {
-			c.Logger.Debugf("%s is ongoing. Retrying after 30 seconds.", jobName)
+			c.Logger.Debugf("%d: %s is ongoing. Retrying after 30 seconds.", i, jobName)
 			retry := time.Second * 30
 			time.Sleep(retry)
 		} else {

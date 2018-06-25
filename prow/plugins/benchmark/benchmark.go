@@ -259,7 +259,7 @@ func waitForStartBenchmarkToEnd(c client) {
 			continue
 		}
 		for _, p := range x {
-			c.Logger.WithFields(pjutil.ProwJobFields(&p)).Info("\n\n\n Listing Prowjob -------------------------------------------------- ::: ")
+			c.Logger.Debugf("\n\n\n Listing Prowjob -------------------------------------------------- ::: ", p)
 		}
 		c.Logger.Debugf("\n\n *************************************** \n\n")
 		retry := time.Second * 10

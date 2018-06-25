@@ -40,7 +40,7 @@ const pluginName = "benchmark"
 const repoName = "sipian/prometheus"
 const projectName = "gcr.io/prometheus-test-204522"
 const buildPRJobName = "build-PR-images"
-const benchmarkName = "start-benchmark"
+const startBenchmarkJobName = "start-benchmark"
 const cancelBenchmarkJobName = "cancel-benchmark"
 const prowJobPRNumber = "PR_NUMBER"
 const prowJobPrometheus1Name = "PROMETHEUS_1_NAME"
@@ -50,9 +50,10 @@ const prowJobPrometheus2Image = "PROMETHEUS_2_IMAGE"
 const maxTries = 50
 
 var (
-	benchmarkLabel    = "benchmark"
-	benchmarkRe       = regexp.MustCompile(`(?mi)^/benchmark\s+(release|pr)\s*$`)
-	benchmarkCancelRe = regexp.MustCompile(`(?mi)^/benchmark\s+cancel\s*$`)
+	benchmarkLabel        = "benchmark"
+	benchmarkPendingLabel = "pending-benchmark-job"
+	benchmarkRe           = regexp.MustCompile(`(?mi)^/benchmark\s+(release|pr)\s*$`)
+	benchmarkCancelRe     = regexp.MustCompile(`(?mi)^/benchmark\s+cancel\s*$`)
 )
 
 func init() {
@@ -95,6 +96,7 @@ type githubClient interface {
 type kubeClient interface {
 	CreateProwJob(kube.ProwJob) (kube.ProwJob, error)
 	ListProwJobs(string) ([]kube.ProwJob, error)
+	GetProwJob(name string) (kube.ProwJob, error)
 }
 
 type client struct {
@@ -122,7 +124,6 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 	if ic.Issue.PullRequest == nil || ic.Action != github.IssueCommentActionCreated {
 		return nil
 	}
-	c.Logger.Infof("Started benchmark plugin")
 
 	org := ic.Repo.Owner.Login
 	repo := ic.Repo.Name
@@ -157,9 +158,9 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 			benchmarkOption = "release"
 		}
 	}
-	c.Logger.Infof("Checked repo status %s", benchmarkOption)
 
 	hasBenchmarkLabel := false
+	hasBenchmarkPendingLabel := false
 	labels, err := c.GitHubClient.GetIssueLabels(org, repo, number)
 	if err != nil {
 		return fmt.Errorf("Failed to get the labels on %s/%s#%d %v.", org, repo, number, err)
@@ -167,37 +168,24 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 	for _, candidate := range labels {
 		if candidate.Name == benchmarkLabel {
 			hasBenchmarkLabel = true
-			break
+		}
+		if candidate.Name == benchmarkPendingLabel {
+			hasBenchmarkPendingLabel = true
 		}
 	}
 
+	if hasBenchmarkPendingLabel {
+		return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "Looks like a job is already lined up for this PR. Please try again once all pending jobs have finished :smiley:"))
+	}
+
 	if wantBenchmark {
-		// Delete all the previous benchmarking comments to avoid confusion
-		botname, err := c.GitHubClient.BotName()
-		if err != nil {
-			fmt.Errorf("Failed to get bot name.")
-		}
-		c.Logger.Infof("BOTNAME : %s", botname)
-		comments, err := c.GitHubClient.ListIssueComments(org, repo, number)
-		if err != nil {
-			fmt.Errorf("Failed to get the list of issue comments on %s/%s#%d.", org, repo, number)
-		}
-		for _, comment := range comments {
-			if comment.User.Login == botname {
-				if err := c.GitHubClient.DeleteComment(org, repo, comment.ID); err != nil {
-					fmt.Errorf("Failed to delete comment from %s/%s#%d, ID:%d.", org, repo, number, comment.ID)
-				}
-			}
-		}
-
-		c.Logger.Infof("Delete comments")
-
-		// Add benchmark label if not already there
 		if !hasBenchmarkLabel {
 			c.Logger.Infof("Adding Benchmark label.")
 			if err := c.GitHubClient.AddLabel(org, repo, number, benchmarkLabel); err != nil {
 				return err
 			}
+		} else {
+			return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "Looks like benchmarking is already running for this PR. You can cancel benchmarking by commenting `/benchmark cancel`. :smiley:"))
 		}
 
 		commentTemplate := `Welcome to Prometheus Benchmarking Tool.
@@ -214,11 +202,11 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 		if benchmarkOption == "release" {
 			resp = fmt.Sprintf(commentTemplate, "release")
 			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
-			err := startReleaseBenchmark(c, ic, "master", "quay.io/prometheus/prometheus:master", "release", "quay.io/prometheus/prometheus:latest")
-			waitForStartBenchmarkToEnd(c)
+
+			err := triggerBenchmarkJob(c, ic, startBenchmarkJobName, cancelBenchmarkJobName, "master", "quay.io/prometheus/prometheus:master", "release", "quay.io/prometheus/prometheus:latest")
 			if err != nil {
 				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench failed: %v", err)))
-				return err
+				return fmt.Errorf("Failed to create prowjob to start-benchmark %v.", err)
 			}
 		} // else {
 		// 	err := buildPRImage(c, ic)
@@ -238,51 +226,40 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 	} else {
 		if hasBenchmarkLabel {
 			c.Logger.Infof("Removing Benchmark label.")
-			c.GitHubClient.RemoveLabel(org, repo, number, benchmarkLabel)
+			if err := c.GitHubClient.RemoveLabel(org, repo, number, benchmarkLabel); err != nil {
+				return err
+			}
+		} else {
+			return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "Looks like benchmarking is not going on for this PR. You can start benchmarking by commenting `/benchmark [pr|release]` :smiley:"))
 		}
-		err := stopBenchmark(c, ic)
+
+		err := triggerBenchmarkJob(c, ic, cancelBenchmarkJobName, startBenchmarkJobName, "temp1", "temp1", "temp2", "temp2")
 		if err != nil {
 			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Deletion of prombench failed: %v", err)))
-			return err
+			return fmt.Errorf("Failed to create prowjob to stop-benchmark %v.", err)
 		}
 	}
 	return nil
 }
 
-func waitForStartBenchmarkToEnd(c client) {
+func triggerBenchmarkJob(c client, ic github.IssueCommentEvent, jobName string, complementJobName string, prometheus1Name string, prometheus1Image string, prometheus2Name string, prometheus2Image string) error {
 
-	for i := 0; i < maxTries; i++ {
-		x, err := c.KubeClient.ListProwJobs("")
-
-		if err != nil {
-			c.Logger.Debugf("\n\n +++++++++++++++++ERROR %v \n\n", err)
-			continue
-		}
-		for _, p := range x {
-			c.Logger.Debugf("\n\n\n Listing Prowjob -------------------------------------------------- ::: ", p)
-		}
-		c.Logger.Debugf("\n\n *************************************** \n\n")
-		retry := time.Second * 10
-		time.Sleep(retry)
+	err := waitForBenchmarkJobToEnd(c, ic, jobName, complementJobName)
+	if err != nil {
+		return err
 	}
-}
 
-func startReleaseBenchmark(c client, ic github.IssueCommentEvent, prometheus1Name string, prometheus1Image string, prometheus2Name string, prometheus2Image string) error {
-
-	c.Logger.Debugf("Starting prowjob to start benchmarking")
 	org := ic.Repo.Owner.Login
 	repo := ic.Repo.Name
 	number := ic.Issue.Number
 
 	pr, err := c.GitHubClient.GetPullRequest(org, repo, number)
 	if err != nil {
-		fmt.Errorf("Failed to Get Pull Request %d %v.", number, err)
 		return err
 	}
 
 	baseSHA, err := c.GitHubClient.GetRef(org, repo, "heads/"+pr.Base.Ref)
 	if err != nil {
-		fmt.Errorf("Failed to Get Base SHA %v.", err)
 		return err
 	}
 
@@ -302,7 +279,7 @@ func startReleaseBenchmark(c client, ic github.IssueCommentEvent, prometheus1Nam
 
 	var benchmark config.Presubmit
 	for _, job := range c.Config.Presubmits[pr.Base.Repo.FullName] {
-		if job.Name == benchmarkName {
+		if job.Name == jobName {
 			// Add environment variables telling which version to benchmark
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPRNumber: strconv.Itoa(number)})...)
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus1Name: prometheus1Name})...)
@@ -310,7 +287,6 @@ func startReleaseBenchmark(c client, ic github.IssueCommentEvent, prometheus1Nam
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus2Name: prometheus2Name})...)
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus2Image: prometheus2Image})...)
 			benchmark = job
-
 			break
 		}
 	}
@@ -322,73 +298,9 @@ func startReleaseBenchmark(c client, ic github.IssueCommentEvent, prometheus1Nam
 
 	labels[github.EventGUID] = ic.GUID
 	pj := pjutil.NewProwJob(pjutil.PresubmitSpec(benchmark, kr), labels)
-	c.Logger.WithFields(pjutil.ProwJobFields(&pj)).Info("Creating a new prowjob.")
+	c.Logger.WithFields(pjutil.ProwJobFields(&pj)).Info("Creating a new prowjob to %s", jobName)
 	if _, err := c.KubeClient.CreateProwJob(pj); err != nil {
-		fmt.Errorf("Failed to Create start-benchmark ProwJob %v.", err)
-		return err
-	}
-	return nil
-}
-
-func stopBenchmark(c client, ic github.IssueCommentEvent) error {
-
-	c.Logger.Debugf("Starting prowjob to stop benchmarking")
-	org := ic.Repo.Owner.Login
-	repo := ic.Repo.Name
-	number := ic.Issue.Number
-
-	pr, err := c.GitHubClient.GetPullRequest(org, repo, number)
-	if err != nil {
-		fmt.Errorf("Failed to Get Pull Request %d %v.", number, err)
-		return err
-	}
-
-	baseSHA, err := c.GitHubClient.GetRef(org, repo, "heads/"+pr.Base.Ref)
-	if err != nil {
-		fmt.Errorf("Failed to Get Base SHA %v.", err)
-		return err
-	}
-
-	kr := kube.Refs{
-		Org:     org,
-		Repo:    repo,
-		BaseRef: pr.Base.Ref,
-		BaseSHA: baseSHA,
-		Pulls: []kube.Pull{
-			{
-				Number: number,
-				Author: pr.User.Login,
-				SHA:    pr.Head.SHA,
-			},
-		},
-	}
-
-	var benchmark config.Presubmit
-	for _, job := range c.Config.Presubmits[pr.Base.Repo.FullName] {
-		if job.Name == cancelBenchmarkJobName {
-			// Add environment variables telling which version to benchmark
-			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPRNumber: strconv.Itoa(number)})...)
-			// since deletion involves deleting the namespace, giving arbitrary values to prometheus versions
-			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus1Name: "temp1"})...)
-			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus1Image: "temp1"})...)
-			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus2Name: "temp2"})...)
-			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus2Image: "temp2"})...)
-			benchmark = job
-
-			break
-		}
-	}
-
-	labels := make(map[string]string)
-	for k, v := range benchmark.Labels {
-		labels[k] = v
-	}
-
-	labels[github.EventGUID] = ic.GUID
-	pj := pjutil.NewProwJob(pjutil.PresubmitSpec(benchmark, kr), labels)
-	c.Logger.WithFields(pjutil.ProwJobFields(&pj)).Info("Creating a new prowjob.")
-	if _, err := c.KubeClient.CreateProwJob(pj); err != nil {
-		fmt.Errorf("Failed to Create cancel-benchmark ProwJob %v.", err)
+		fmt.Errorf("Failed to Create %s ProwJob %v.", jobName, err)
 		return err
 	}
 	return nil
@@ -452,6 +364,68 @@ func buildPRImage(c client, ic github.IssueCommentEvent) error {
 	}
 	return nil
 }
+
+func waitForBenchmarkJobToEnd(c client, ic github.IssueCommentEvent, jobName string, newJobName string) error {
+	org := ic.Repo.Owner.Login
+	repo := ic.Repo.Name
+	number := ic.Issue.Number
+
+	pjs, err := c.KubeClient.ListProwJobs("")
+	if err != nil {
+		return err
+	}
+
+	pendingJobName := ""
+
+	for _, pj := range pjs {
+		if pj.Status.State == kube.TriggeredState || pj.Status.State == kube.PendingState {
+			if pj.Spec.Job == jobName {
+				for _, e := range pj.Spec.PodSpec.Containers[0].Env {
+					if e.Name == prowJobPRNumber && e.Value == strconv.Itoa(number) {
+						pendingJobName = pj.Name
+						break
+					}
+				}
+			}
+		}
+	}
+	if pendingJobName == "" {
+		c.Logger.Debugf("Did not find any ongoing %s job.", jobName)
+		return nil
+	}
+
+	if err := c.GitHubClient.AddLabel(org, repo, number, benchmarkPendingLabel); err != nil {
+		return err
+	}
+	if err := c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Looks like %s job is already running on this PR. Will start %s job once ongoing job is completed", jobName, newJobName))); err != nil {
+		return err
+	}
+
+	for i := 0; i < maxTries; i++ {
+		pj, err := c.KubeClient.GetProwJob(pendingJobName)
+
+		if err != nil {
+			c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel) //remove label to not block future jobs
+			return fmt.Errorf("Failed to get ProwJob %s to end %s.", pendingJobName, jobName)
+		}
+
+		if pj.Status.State == kube.TriggeredState || pj.Status.State == kube.PendingState {
+			c.Logger.Debugf("%s is ongoing. Retrying after 30 seconds.", jobName)
+			retry := time.Second * 30
+			time.Sleep(retry)
+		} else {
+			if err := c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel); err != nil {
+				c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel) //remove label to not block future jobs
+				return err
+			}
+			c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel) //remove label to not block future jobs
+			return nil
+		}
+	}
+	c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel) //remove label to not block future jobs
+	return fmt.Errorf("Ongoing %s job was not finished after trying for %d times.", jobName, maxTries)
+}
+
 func loadRepoOwners(ghc githubClient, ownersClient repoowners.Interface, org, repo string, number int) (repoowners.RepoOwnerInterface, error) {
 	pr, err := ghc.GetPullRequest(org, repo, number)
 	if err != nil {

@@ -175,7 +175,7 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 	}
 
 	if hasBenchmarkPendingLabel {
-		return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "Looks like a job is already lined up for this PR. Please try again once all pending jobs have finished :smiley:"))
+		return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "Looks like a job is already lined up for this PR.<br/> Please try again once all pending jobs have finished :smiley:"))
 	}
 
 	if wantBenchmark {
@@ -185,7 +185,7 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 				return err
 			}
 		} else {
-			return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "Looks like benchmarking is already running for this PR. You can cancel benchmarking by commenting `/benchmark cancel`. :smiley:"))
+			return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "Looks like benchmarking is already running for this PR.<br/> You can cancel benchmarking by commenting `/benchmark cancel`. :smiley:"))
 		}
 
 		commentTemplate := `Welcome to Prometheus Benchmarking Tool.
@@ -224,19 +224,17 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 		// 	}
 		// }
 	} else {
-		if hasBenchmarkLabel {
-			c.Logger.Infof("Removing Benchmark label.")
-			if err := c.GitHubClient.RemoveLabel(org, repo, number, benchmarkLabel); err != nil {
-				return err
-			}
-		} else {
-			return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "Looks like benchmarking is not going on for this PR. You can start benchmarking by commenting `/benchmark [pr|release]` :smiley:"))
+		if !hasBenchmarkLabel {
+			return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "Looks like benchmarking is not going on for this PR.<br/> You can start benchmarking by commenting `/benchmark [pr|release]` :smiley:"))
 		}
-
 		err := triggerBenchmarkJob(c, ic, cancelBenchmarkJobName, startBenchmarkJobName, "temp1", "temp1", "temp2", "temp2")
 		if err != nil {
 			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Deletion of prombench failed: %v", err)))
 			return fmt.Errorf("Failed to create prowjob to stop-benchmark %v.", err)
+		}
+		c.Logger.Infof("Removing Benchmark label.")
+		if err := c.GitHubClient.RemoveLabel(org, repo, number, benchmarkLabel); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -244,7 +242,7 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 
 func triggerBenchmarkJob(c client, ic github.IssueCommentEvent, jobName string, complementJobName string, prometheus1Name string, prometheus1Image string, prometheus2Name string, prometheus2Image string) error {
 
-	err := waitForBenchmarkJobToEnd(c, ic, jobName, complementJobName)
+	err := waitForBenchmarkJobToEnd(c, ic, complementJobName, jobName)
 	if err != nil {
 		return err
 	}

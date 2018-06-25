@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
@@ -46,6 +47,7 @@ const prowJobPrometheus1Name = "PROMETHEUS_1_NAME"
 const prowJobPrometheus1Image = "PROMETHEUS_1_IMAGE"
 const prowJobPrometheus2Name = "PROMETHEUS_2_NAME"
 const prowJobPrometheus2Image = "PROMETHEUS_2_IMAGE"
+const maxTries = 50
 
 var (
 	benchmarkLabel    = "benchmark"
@@ -92,6 +94,7 @@ type githubClient interface {
 
 type kubeClient interface {
 	CreateProwJob(kube.ProwJob) (kube.ProwJob, error)
+	ListProwJobs(string) ([]kube.ProwJob, error)
 }
 
 type client struct {
@@ -211,26 +214,27 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 		if benchmarkOption == "release" {
 			resp = fmt.Sprintf(commentTemplate, "release")
 			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
-			err := startBenchmark(c, ic, "master", "quay.io/prometheus/prometheus:master", "release", "quay.io/prometheus/prometheus:latest")
+			err := startReleaseBenchmark(c, ic, "master", "quay.io/prometheus/prometheus:master", "release", "quay.io/prometheus/prometheus:latest")
+			waitForStartBenchmarkToEnd(c)
 			if err != nil {
 				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench failed: %v", err)))
 				return err
 			}
-		} else {
-			err := buildPRImage(c, ic)
-			if err != nil {
-				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "The creation of the docker image for this PR has failed."))
-				fmt.Errorf("Failed to create docker image on %s/%s#%d %v.", org, repo, number, err)
-				return err
-			}
-			resp = fmt.Sprintf(commentTemplate, "pr")
-			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
-			err = startBenchmark(c, ic, "master", "quay.io/prometheus/prometheus:master", fmt.Sprintf("pr-%d", number), fmt.Sprintf("%s/prombench-PR-image:pr-%d", projectName, number))
-			if err != nil {
-				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench cluster failed: %v", err)))
-				return err
-			}
-		}
+		} // else {
+		// 	err := buildPRImage(c, ic)
+		// 	if err != nil {
+		// 		c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "The creation of the docker image for this PR has failed."))
+		// 		fmt.Errorf("Failed to create docker image on %s/%s#%d %v.", org, repo, number, err)
+		// 		return err
+		// 	}
+		// 	resp = fmt.Sprintf(commentTemplate, "pr")
+		// 	c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
+		// 	err = startBenchmark(c, ic, "master", "quay.io/prometheus/prometheus:master", fmt.Sprintf("pr-%d", number), fmt.Sprintf("%s/prombench-PR-image:pr-%d", projectName, number))
+		// 	if err != nil {
+		// 		c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench cluster failed: %v", err)))
+		// 		return err
+		// 	}
+		// }
 	} else {
 		if hasBenchmarkLabel {
 			c.Logger.Infof("Removing Benchmark label.")
@@ -245,7 +249,25 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 	return nil
 }
 
-func startBenchmark(c client, ic github.IssueCommentEvent, prometheus1Name string, prometheus1Image string, prometheus2Name string, prometheus2Image string) error {
+func waitForStartBenchmarkToEnd(c client) {
+
+	for i := 0; i < maxTries; i++ {
+		x, err := c.KubeClient.ListProwJobs("")
+
+		if err != nil {
+			c.Logger.Debugf("\n\n +++++++++++++++++ERROR %v \n\n", err)
+			continue
+		}
+		for _, p := range x {
+			c.Logger.WithFields(pjutil.ProwJobFields(&p)).Info("\n\n\n Listing Prowjob -------------------------------------------------- ::: ")
+		}
+		c.Logger.Debugf("\n\n *************************************** \n\n")
+		retry := time.Second * 10
+		time.Sleep(retry)
+	}
+}
+
+func startReleaseBenchmark(c client, ic github.IssueCommentEvent, prometheus1Name string, prometheus1Image string, prometheus2Name string, prometheus2Image string) error {
 
 	c.Logger.Debugf("Starting prowjob to start benchmarking")
 	org := ic.Repo.Owner.Login

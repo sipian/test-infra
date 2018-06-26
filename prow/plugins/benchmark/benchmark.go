@@ -235,9 +235,9 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 	return nil
 }
 
-func triggerBenchmarkJob(c client, ic github.IssueCommentEvent, jobName string, complementJobName []string, prometheus1Name string, prometheus1Image string, prometheus2Name string, prometheus2Image string) error {
+func triggerBenchmarkJob(c client, ic github.IssueCommentEvent, jobName string, otherJobNames []string, prometheus1Name string, prometheus1Image string, prometheus2Name string, prometheus2Image string) error {
 
-	err := waitForOtherBenchmarkJobToEnd(c, ic, complementJobName, jobName)
+	err := waitForOtherBenchmarkJobToEnd(c, ic, otherJobNames, jobName)
 	if err != nil {
 		return err
 	}
@@ -366,9 +366,8 @@ func startPRBenchmarkJob(c client, ic github.IssueCommentEvent) error {
 		labels[k] = v
 	}
 	labels[github.EventGUID] = ic.GUID
-	startBenchmarkPJ := pjutil.NewProwJob(pjutil.PresubmitSpec(startBenchmarkJob, kr), labels)
 
-	prBuilderPJ.Spec.RunAfterSuccess = append(prBuilderPJ.Spec.RunAfterSuccess, startBenchmarkPJ.Spec)
+	prBuilderPJ.Spec.RunAfterSuccess = append(prBuilderPJ.Spec.RunAfterSuccess, pjutil.PresubmitSpec(startBenchmarkJob, kr))
 
 	c.Logger.WithFields(pjutil.ProwJobFields(&prBuilderPJ)).Info("Creating a new prowjob to build PR image and start benchmarking.")
 	if _, err := c.KubeClient.CreateProwJob(prBuilderPJ); err != nil {
@@ -383,60 +382,56 @@ func waitForOtherBenchmarkJobToEnd(c client, ic github.IssueCommentEvent, jobNam
 	repo := ic.Repo.Name
 	number := ic.Issue.Number
 
-	pjs, err := c.KubeClient.ListProwJobs("")
-	if err != nil {
-		return err
-	}
+	defer c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel) //remove label to not block future jobs
 
-	pendingJobName := ""
+	for _, job := range jobName {
 
-	for _, pj := range pjs {
-		if pj.Status.State == kube.TriggeredState || pj.Status.State == kube.PendingState {
-			if inSlice(pj.Spec.Job, jobName) {
-				for _, e := range pj.Spec.PodSpec.Containers[0].Env {
-					if e.Name == prowJobPRNumber && e.Value == strconv.Itoa(number) {
-						pendingJobName = pj.Name
-						break
+		pjs, err := c.KubeClient.ListProwJobs("")
+		if err != nil {
+			return err
+		}
+
+		pendingJobName := ""
+
+		for _, pj := range pjs {
+			if pj.Status.State == kube.TriggeredState || pj.Status.State == kube.PendingState {
+				if pj.Spec.Job == job {
+					for _, e := range pj.Spec.PodSpec.Containers[0].Env {
+						if e.Name == prowJobPRNumber && e.Value == strconv.Itoa(number) {
+							pendingJobName = pj.Name
+							break
+						}
 					}
 				}
 			}
 		}
-	}
-	if pendingJobName == "" {
-		c.Logger.Debugf("Did not find any ongoing %s job.", jobName)
-		return nil
-	}
 
-	if err := c.GitHubClient.AddLabel(org, repo, number, benchmarkPendingLabel); err != nil {
-		return err
-	}
-	if err := c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Looks like %s job is already running on this PR. Will start %s job once ongoing job is completed", jobName, newJobName))); err != nil {
-		return err
-	}
+		if pendingJobName != "" {
 
-	for i := 0; i < maxTries; i++ {
-		pj, err := c.KubeClient.GetProwJob(pendingJobName)
+			c.GitHubClient.AddLabel(org, repo, number, benchmarkPendingLabel)
+			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Looks like %s job is already running on this PR. Will start %s job once ongoing job is completed", job, newJobName)))
+			var i int
+			for i = 0; i < maxTries; i++ {
+				pj, err := c.KubeClient.GetProwJob(pendingJobName)
 
-		if err != nil {
-			c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel) //remove label to not block future jobs
-			return fmt.Errorf("Failed to get ProwJob %s to end %s.", pendingJobName, jobName)
-		}
+				if err != nil {
+					return fmt.Errorf("Failed to get ProwJob %s to end %s.", pendingJobName, job)
+				}
 
-		if pj.Status.State == kube.TriggeredState || pj.Status.State == kube.PendingState {
-			c.Logger.Debugf("%d: %s is ongoing. Retrying after 30 seconds.", i, jobName)
-			retry := time.Second * 30
-			time.Sleep(retry)
-		} else {
-			if err := c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel); err != nil {
-				c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel) //remove label to not block future jobs
-				return err
+				if pj.Status.State == kube.TriggeredState || pj.Status.State == kube.PendingState {
+					c.Logger.Debugf("%d: %s is ongoing. Retrying after 30 seconds.", i, job)
+					retry := time.Second * 30
+					time.Sleep(retry)
+				} else {
+					break
+				}
 			}
-			c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel) //remove label to not block future jobs
-			return nil
+			if i >= maxTries {
+				return fmt.Errorf("Ongoing %s job was not finished after trying for %d times.", job, maxTries)
+			}
 		}
 	}
-	c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel) //remove label to not block future jobs
-	return fmt.Errorf("Ongoing %s job was not finished after trying for %d times.", jobName, maxTries)
+	return nil
 }
 
 func inSlice(str string, list []string) bool {

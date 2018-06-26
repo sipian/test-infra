@@ -196,7 +196,7 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 
 The two prometheus versions that will be compared are _**master**_ and _**%s**_
 
-The links to view the ongoing benchmarking metrics will be provided in the logs. 
+The links to view the ongoing benchmarking metrics will be provided in the **start-benchmark** logs. 
 
 The logs can be viewed at the links provided in the GitHub checks block at the end of this conversation
 

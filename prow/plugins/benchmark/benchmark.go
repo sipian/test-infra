@@ -198,7 +198,7 @@ The two prometheus versions that will be compared are _**master**_ and _**%s**_
 
 The links to view the ongoing benchmarking metrics will be provided in the logs. 
 
-The logs can be viewed at the links provided at the end of this conversation
+The logs can be viewed at the links provided in the GitHub checks block at the end of this conversation
 
 To cancel the benchmark process comment **/benchmark cancel** .`
 
@@ -449,15 +449,6 @@ func waitForOtherBenchmarkJobToEnd(c client, ic github.IssueCommentEvent, jobNam
 		}
 	}
 	return nil
-}
-
-func inSlice(str string, list []string) bool {
-	for _, v := range list {
-		if v == str {
-			return true
-		}
-	}
-	return false
 }
 
 func loadRepoOwners(ghc githubClient, ownersClient repoowners.Interface, org, repo string, number int) (repoowners.RepoOwnerInterface, error) {

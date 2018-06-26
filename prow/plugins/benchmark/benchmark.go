@@ -203,31 +203,26 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 			resp = fmt.Sprintf(commentTemplate, "release")
 			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
 
-			err := triggerBenchmarkJob(c, ic, startBenchmarkJobName, cancelBenchmarkJobName, "master", "quay.io/prometheus/prometheus:master", "release", "quay.io/prometheus/prometheus:latest")
+			err := triggerBenchmarkJob(c, ic, startBenchmarkJobName, []string{cancelBenchmarkJobName}, "master", "quay.io/prometheus/prometheus:master", "release", "quay.io/prometheus/prometheus:latest")
 			if err != nil {
 				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench failed: %v", err)))
 				return fmt.Errorf("Failed to create prowjob to start-benchmark %v.", err)
 			}
-		} // else {
-		// 	err := buildPRImage(c, ic)
-		// 	if err != nil {
-		// 		c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "The creation of the docker image for this PR has failed."))
-		// 		fmt.Errorf("Failed to create docker image on %s/%s#%d %v.", org, repo, number, err)
-		// 		return err
-		// 	}
-		// 	resp = fmt.Sprintf(commentTemplate, "pr")
-		// 	c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
-		// 	err = startBenchmark(c, ic, "master", "quay.io/prometheus/prometheus:master", fmt.Sprintf("pr-%d", number), fmt.Sprintf("%s/prombench-PR-image:pr-%d", projectName, number))
-		// 	if err != nil {
-		// 		c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench cluster failed: %v", err)))
-		// 		return err
-		// 	}
-		// }
+		} else {
+			resp = fmt.Sprintf(commentTemplate, fmt.Sprintf("pr-%d", number))
+			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
+
+			err := startPRBenchmarkJob(c, ic)
+			if err != nil {
+				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench cluster failed: %v", err)))
+				return fmt.Errorf("Failed to create prowjob to build-pr-image and start-benchmark %v.", err)
+			}
+		}
 	} else {
 		if !hasBenchmarkLabel {
 			return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "Looks like benchmarking is not going on for this PR.<br/> You can start benchmarking by commenting `/benchmark [pr|release]` :smiley:"))
 		}
-		err := triggerBenchmarkJob(c, ic, cancelBenchmarkJobName, startBenchmarkJobName, "temp1", "temp1", "temp2", "temp2")
+		err := triggerBenchmarkJob(c, ic, cancelBenchmarkJobName, []string{buildPRJobName, startBenchmarkJobName}, "temp1", "temp1", "temp2", "temp2")
 		if err != nil {
 			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Deletion of prombench failed: %v", err)))
 			return fmt.Errorf("Failed to create prowjob to stop-benchmark %v.", err)
@@ -240,9 +235,9 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 	return nil
 }
 
-func triggerBenchmarkJob(c client, ic github.IssueCommentEvent, jobName string, complementJobName string, prometheus1Name string, prometheus1Image string, prometheus2Name string, prometheus2Image string) error {
+func triggerBenchmarkJob(c client, ic github.IssueCommentEvent, jobName string, complementJobName []string, prometheus1Name string, prometheus1Image string, prometheus2Name string, prometheus2Image string) error {
 
-	err := waitForBenchmarkJobToEnd(c, ic, complementJobName, jobName)
+	err := waitForOtherBenchmarkJobToEnd(c, ic, complementJobName, jobName)
 	if err != nil {
 		return err
 	}
@@ -304,9 +299,13 @@ func triggerBenchmarkJob(c client, ic github.IssueCommentEvent, jobName string, 
 	return nil
 }
 
-func buildPRImage(c client, ic github.IssueCommentEvent) error {
+func startPRBenchmarkJob(c client, ic github.IssueCommentEvent) error {
 
-	c.Logger.Debugf("Started prowjob to build PR image")
+	err := waitForOtherBenchmarkJobToEnd(c, ic, []string{cancelBenchmarkJobName}, buildPRJobName)
+	if err != nil {
+		return err
+	}
+
 	org := ic.Repo.Owner.Login
 	repo := ic.Repo.Name
 	number := ic.Issue.Number
@@ -323,13 +322,21 @@ func buildPRImage(c client, ic github.IssueCommentEvent) error {
 		return err
 	}
 
-	var benchmarkJob config.Presubmit
-	imageName := fmt.Sprintf("%s/prombench-PR-image:pr-%d", projectName, number)
+	var prBuilderJob, startBenchmarkJob config.Presubmit
+	imageName := fmt.Sprintf("%s/prombench-pr-image:pr-%d", projectName, number)
 	for _, job := range c.Config.Presubmits[pr.Base.Repo.FullName] {
 		if job.Name == buildPRJobName {
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{"PROW_BENCHMARK_DOCKER_IMAGE": imageName})...)
-			benchmarkJob = job
-			break
+			prBuilderJob = job
+		}
+		if job.Name == startBenchmarkJobName {
+			// Add environment variables telling which version to benchmark
+			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPRNumber: strconv.Itoa(number)})...)
+			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus1Name: "master"})...)
+			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus1Image: "quay.io/prometheus/prometheus:master"})...)
+			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus2Name: fmt.Sprintf("pr-%d", number)})...)
+			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus2Image: imageName})...)
+			startBenchmarkJob = job
 		}
 	}
 
@@ -347,23 +354,31 @@ func buildPRImage(c client, ic github.IssueCommentEvent) error {
 		},
 	}
 
-	c.Logger.Infof("Starting %s build.", benchmarkJob.Name)
-
 	labels := make(map[string]string)
-	for k, v := range benchmarkJob.Labels {
+	for k, v := range prBuilderJob.Labels {
 		labels[k] = v
 	}
 	labels[github.EventGUID] = ic.GUID
-	pj := pjutil.NewProwJob(pjutil.PresubmitSpec(benchmarkJob, kr), labels)
-	c.Logger.WithFields(pjutil.ProwJobFields(&pj)).Info("Creating a new prowjob.")
-	if _, err := c.KubeClient.CreateProwJob(pj); err != nil {
-		fmt.Errorf("Failed to Create start-benchmark ProwJob %v.", err)
+	prBuilderPJ := pjutil.NewProwJob(pjutil.PresubmitSpec(prBuilderJob, kr), labels)
+
+	labels = make(map[string]string)
+	for k, v := range startBenchmarkJob.Labels {
+		labels[k] = v
+	}
+	labels[github.EventGUID] = ic.GUID
+	startBenchmarkPJ := pjutil.NewProwJob(pjutil.PresubmitSpec(startBenchmarkJob, kr), labels)
+
+	prBuilderPJ.Spec.RunAfterSuccess = append(prBuilderPJ.Spec.RunAfterSuccess, startBenchmarkPJ.Spec)
+
+	c.Logger.WithFields(pjutil.ProwJobFields(&prBuilderPJ)).Info("Creating a new prowjob to build PR image and start benchmarking.")
+	if _, err := c.KubeClient.CreateProwJob(prBuilderPJ); err != nil {
+		fmt.Errorf("Failed to create build-PR-images -> start-benchmark ProwJob %v.", err)
 		return err
 	}
 	return nil
 }
 
-func waitForBenchmarkJobToEnd(c client, ic github.IssueCommentEvent, jobName string, newJobName string) error {
+func waitForOtherBenchmarkJobToEnd(c client, ic github.IssueCommentEvent, jobName []string, newJobName string) error {
 	org := ic.Repo.Owner.Login
 	repo := ic.Repo.Name
 	number := ic.Issue.Number
@@ -377,7 +392,7 @@ func waitForBenchmarkJobToEnd(c client, ic github.IssueCommentEvent, jobName str
 
 	for _, pj := range pjs {
 		if pj.Status.State == kube.TriggeredState || pj.Status.State == kube.PendingState {
-			if pj.Spec.Job == jobName {
+			if inSlice(pj.Spec.Job, jobName) {
 				for _, e := range pj.Spec.PodSpec.Containers[0].Env {
 					if e.Name == prowJobPRNumber && e.Value == strconv.Itoa(number) {
 						pendingJobName = pj.Name
@@ -422,6 +437,15 @@ func waitForBenchmarkJobToEnd(c client, ic github.IssueCommentEvent, jobName str
 	}
 	c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel) //remove label to not block future jobs
 	return fmt.Errorf("Ongoing %s job was not finished after trying for %d times.", jobName, maxTries)
+}
+
+func inSlice(str string, list []string) bool {
+	for _, v := range list {
+		if v == str {
+			return true
+		}
+	}
+	return false
 }
 
 func loadRepoOwners(ghc githubClient, ownersClient repoowners.Interface, org, repo string, number int) (repoowners.RepoOwnerInterface, error) {

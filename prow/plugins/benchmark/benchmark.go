@@ -132,6 +132,8 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 
 	// If we create an "/benchmark" comment, add benchmark if necessary.
 	// If we create a "/benchmark cancel" comment, remove benchmark if necessary.
+
+	c.Logger.Debugf("Checking benchmark trigger keywords.")
 	wantBenchmark := false
 	if benchmarkRe.MatchString(ic.Comment.Body) {
 		wantBenchmark = true
@@ -141,6 +143,7 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 		return nil
 	}
 
+	c.Logger.Debugf("Checking if author is authorized.")
 	// check if comment author is authorized to start benchmarking
 	ro, err := loadRepoOwners(c.GitHubClient, ownersClient, org, repo, number)
 	if err != nil {
@@ -152,6 +155,7 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 		return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
 	}
 
+	c.Logger.Debugf("Checking which version of Prometheus to benchmark.")
 	benchmarkOption := "pr"
 	if wantBenchmark {
 		if strings.Contains(ic.Comment.Body, "release") {
@@ -241,6 +245,7 @@ func triggerBenchmarkJob(c client, ic github.IssueCommentEvent, jobName string, 
 	if err != nil {
 		return err
 	}
+	c.Logger.Infof("All pending %s jobs have finished", jobName)
 
 	org := ic.Repo.Owner.Login
 	repo := ic.Repo.Name
@@ -273,6 +278,8 @@ func triggerBenchmarkJob(c client, ic github.IssueCommentEvent, jobName string, 
 	var benchmark config.Presubmit
 	for _, job := range c.Config.Presubmits[pr.Base.Repo.FullName] {
 		if job.Name == jobName {
+			c.Logger.Debugf("Adding env variables to %s prowjob", jobName)
+
 			// Add environment variables telling which version to benchmark
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPRNumber: strconv.Itoa(number)})...)
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus1Name: prometheus1Name})...)
@@ -305,6 +312,7 @@ func startPRBenchmarkJob(c client, ic github.IssueCommentEvent) error {
 	if err != nil {
 		return err
 	}
+	c.Logger.Infof("All pending cancel-benchmark jobs have finished")
 
 	org := ic.Repo.Owner.Login
 	repo := ic.Repo.Name
@@ -312,24 +320,29 @@ func startPRBenchmarkJob(c client, ic github.IssueCommentEvent) error {
 
 	pr, err := c.GitHubClient.GetPullRequest(org, repo, number)
 	if err != nil {
-		fmt.Errorf("Failed to Get Pull Request %d %v.", number, err)
 		return err
 	}
 
 	baseSHA, err := c.GitHubClient.GetRef(org, repo, "heads/"+pr.Base.Ref)
 	if err != nil {
-		fmt.Errorf("Failed to Get Base SHA %v.", err)
 		return err
 	}
 
 	var prBuilderJob, startBenchmarkJob config.Presubmit
 	imageName := fmt.Sprintf("%s/prombench-pr-image:pr-%d", projectName, number)
+	c.Logger.Infof("PR image name is %s", imageName)
+
 	for _, job := range c.Config.Presubmits[pr.Base.Repo.FullName] {
 		if job.Name == buildPRJobName {
+			c.Logger.Debugf("Adding env variables to %s prowjob", buildPRJobName)
+
+			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPRNumber: strconv.Itoa(number)})...)
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{"PROW_BENCHMARK_DOCKER_IMAGE": imageName})...)
 			prBuilderJob = job
 		}
 		if job.Name == startBenchmarkJobName {
+			c.Logger.Debugf("Adding env variables to %s prowjob", startBenchmarkJobName)
+
 			// Add environment variables telling which version to benchmark
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPRNumber: strconv.Itoa(number)})...)
 			job.Spec.Containers[0].Env = append(job.Spec.Containers[0].Env, kubeEnv(map[string]string{prowJobPrometheus1Name: "master"})...)
@@ -393,13 +406,15 @@ func waitForOtherBenchmarkJobToEnd(c client, ic github.IssueCommentEvent, jobNam
 
 		pendingJobName := ""
 
+	ProwJobLoop:
 		for _, pj := range pjs {
 			if pj.Status.State == kube.TriggeredState || pj.Status.State == kube.PendingState {
 				if pj.Spec.Job == job {
 					for _, e := range pj.Spec.PodSpec.Containers[0].Env {
 						if e.Name == prowJobPRNumber && e.Value == strconv.Itoa(number) {
+							c.Logger.Infof("Before starting %s, need to wait for %s Job.", newJobName, job)
 							pendingJobName = pj.Name
-							break
+							break ProwJobLoop
 						}
 					}
 				}
@@ -411,6 +426,8 @@ func waitForOtherBenchmarkJobToEnd(c client, ic github.IssueCommentEvent, jobNam
 			c.GitHubClient.AddLabel(org, repo, number, benchmarkPendingLabel)
 			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Looks like %s job is already running on this PR. Will start %s job once ongoing job is completed", job, newJobName)))
 			var i int
+
+			c.Logger.Debugf("Starting wait for job %s:%s", job, pendingJobName)
 			for i = 0; i < maxTries; i++ {
 				pj, err := c.KubeClient.GetProwJob(pendingJobName)
 

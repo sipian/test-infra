@@ -21,7 +21,6 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -52,7 +51,7 @@ const maxTries = 50
 var (
 	benchmarkLabel        = "benchmark"
 	benchmarkPendingLabel = "pending-benchmark-job"
-	benchmarkRe           = regexp.MustCompile(`(?mi)^/benchmark\s+(release|pr)\s*$`)
+	benchmarkRe           = regexp.MustCompile(`(?mi)^/benchmark\s+(release|pr)\s*([0-9]+\.[0-9]+\.[0-9]+\S*)\s*?$`)
 	benchmarkCancelRe     = regexp.MustCompile(`(?mi)^/benchmark\s+cancel\s*$`)
 )
 
@@ -156,10 +155,22 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 	}
 
 	c.Logger.Debugf("Checking which version of Prometheus to benchmark.")
-	benchmarkOption := "pr"
+	benchmarkOption := ""
+	releaseVersion := ""
+
 	if wantBenchmark {
-		if strings.Contains(ic.Comment.Body, "release") {
+		group := benchmarkRe.FindStringSubmatch(ic.Comment.Body)
+		if group[1] == "pr" {
+			benchmarkOption = "pr"
+		} else if group[1] == "release" {
 			benchmarkOption = "release"
+			if group[2] == "" {
+				releaseVersion = "latest"
+			} else {
+				releaseVersion = "v" + group[2]
+			}
+		} else {
+			return nil
 		}
 	}
 
@@ -207,7 +218,7 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 			resp = fmt.Sprintf(commentTemplate, "release")
 			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
 
-			err := triggerBenchmarkJob(c, ic, startBenchmarkJobName, []string{cancelBenchmarkJobName}, "master", "quay.io/prometheus/prometheus:master", "release", "quay.io/prometheus/prometheus:latest")
+			err := triggerBenchmarkJob(c, ic, startBenchmarkJobName, []string{cancelBenchmarkJobName}, "master", "quay.io/prometheus/prometheus:master", releaseVersion, fmt.Sprintf("quay.io/prometheus/prometheus:%s", releaseVersion))
 			if err != nil {
 				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench failed: %v", err)))
 				return fmt.Errorf("Failed to create prowjob to start-benchmark %v.", err)

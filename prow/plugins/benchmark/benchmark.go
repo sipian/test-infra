@@ -68,11 +68,11 @@ func helpProvider(config *plugins.Configuration, enabledRepos []string) (*plugin
 		Description: "The benchmark plugin starts prometheus benchmarking tool(prombench).",
 	}
 	pluginHelp.AddCommand(pluginhelp.Command{
-		Usage:       "/benchmark [release|pr]",
+		Usage:       "/benchmark pr or /benchmark release [version_number(ex:2.3.0-rc.1)|Default:latest]",
 		Description: "Starts prometheus benchmarking tool. With `release` current master will be compared with previous release. With `pr`, PR will be compared with current master.",
 		Featured:    true,
 		WhoCanUse:   "Members whose Github handle is present in OWNER file.",
-		Examples:    []string{"/benchmark release", "/benchmark pr", "/benchmark cancel"},
+		Examples:    []string{"/benchmark release", "/benchmark release 2.3.0-rc.1", "/benchmark pr", "/benchmark cancel"},
 	})
 	return pluginHelp, nil
 }
@@ -215,7 +215,7 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 
 		var resp string
 		if benchmarkOption == "release" {
-			resp = fmt.Sprintf(commentTemplate, "release")
+			resp = fmt.Sprintf(commentTemplate, fmt.Sprint("release-", releaseVersion))
 			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
 
 			err := triggerBenchmarkJob(c, ic, startBenchmarkJobName, []string{cancelBenchmarkJobName}, "master", "quay.io/prometheus/prometheus:master", releaseVersion, fmt.Sprintf("quay.io/prometheus/prometheus:%s", releaseVersion))

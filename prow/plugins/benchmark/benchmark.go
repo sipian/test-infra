@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -218,7 +219,7 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 			resp = fmt.Sprintf(commentTemplate, fmt.Sprint("release-", releaseVersion))
 			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
 
-			err := triggerBenchmarkJob(c, ic, startBenchmarkJobName, []string{cancelBenchmarkJobName}, "master", "quay.io/prometheus/prometheus:master", releaseVersion, fmt.Sprintf("quay.io/prometheus/prometheus:%s", releaseVersion))
+			err := triggerBenchmarkJob(c, ic, startBenchmarkJobName, []string{cancelBenchmarkJobName}, "master", "quay.io/prometheus/prometheus:master", strings.Replace(releaseVersion, ".", "-", -1), fmt.Sprintf("quay.io/prometheus/prometheus:%s", releaseVersion))
 			if err != nil {
 				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench failed: %v", err)))
 				return fmt.Errorf("Failed to create prowjob to start-benchmark %v.", err)

@@ -52,7 +52,7 @@ const maxTries = 50
 var (
 	benchmarkLabel        = "benchmark"
 	benchmarkPendingLabel = "pending-benchmark-job"
-	benchmarkRe           = regexp.MustCompile(`(?mi)^/benchmark\s+(release|pr)\s*([0-9]+\.[0-9]+\.[0-9]+\S*)\s*?$`)
+	benchmarkRe           = regexp.MustCompile(`(?mi)^/benchmark\s+(release|pr)\s*([0-9]+\.[0-9]+\.[0-9]+\S*)?\s*$`)
 	benchmarkCancelRe     = regexp.MustCompile(`(?mi)^/benchmark\s+cancel\s*$`)
 )
 

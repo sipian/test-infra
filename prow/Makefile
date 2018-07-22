@@ -115,8 +115,8 @@ branchprotector-cronjob: get-cluster-credentials
 
 hook-image:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o cmd/hook/hook k8s.io/test-infra/prow/cmd/hook
-	docker build -t "$(REGISTRY)/$(PROJECT)/hook:$(HOOK_VERSION)" $(DOCKER_LABELS) cmd/hook
-	$(PUSH) "$(REGISTRY)/$(PROJECT)/hook:$(HOOK_VERSION)"
+	docker build -t "docker.io/sipian/hook:$(HOOK_VERSION)" $(DOCKER_LABELS) cmd/hook
+	$(PUSH) "docker.io/sipian/hook:$(HOOK_VERSION)"
 
 hook-deployment: get-cluster-credentials
 	kubectl apply -f cluster/hook_deployment.yaml
@@ -132,7 +132,7 @@ bump:
 	./bump.sh hook
 
 style: prometheus_style staticcheck unused test build
-hook: bump hook-image hook-deployment
+hook: bump hook-image
 config: bazel-check-config update-config update-plugins
 comment: 
 	bazel run //prow/cmd/phony -- --address=http://35.227.204.14/hook --hmac=880a9aa4f2ac52faa6801eed4fb8f9bb1ced5799 --event=issue_comment --payload=/home/harsh/go/src/k8s.io/test-infra/prow/open_pr.json

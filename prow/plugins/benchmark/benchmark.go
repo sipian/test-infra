@@ -18,6 +18,7 @@ package benchmark
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -38,7 +39,6 @@ import (
 
 const pluginName = "benchmark"
 const repoName = "sipian/prometheus"
-const projectName = "gcr.io/prometheus-test-204522"
 const buildPRJobName = "build-PR-images"
 const startBenchmarkJobName = "start-benchmark"
 const cancelBenchmarkJobName = "cancel-benchmark"
@@ -54,6 +54,8 @@ var (
 	benchmarkPendingLabel = "pending-benchmark-job"
 	benchmarkRe           = regexp.MustCompile(`(?mi)^/benchmark\s+(release|pr)\s*([0-9]+\.[0-9]+\.[0-9]+\S*)?\s*$`)
 	benchmarkCancelRe     = regexp.MustCompile(`(?mi)^/benchmark\s+cancel\s*$`)
+	projectName           = fmt.Sprintf("gcr.io/%s", os.Getenv("PROMBENCH_PROJECT_ID"))
+	ingress_ip            = fmt.Sprintf("http://%s", os.Getenv("PROMBENCH_INGRESS_IP"))
 )
 
 func init() {
@@ -208,15 +210,17 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 
 The two prometheus versions that will be compared are _**master**_ and _**%s**_
 
-The links to view the ongoing benchmarking metrics will be provided in the **start-benchmark** logs. 
+The logs can be viewed at the links provided in the GitHub check blocks at the end of this conversation
 
-The logs can be viewed at the links provided in the GitHub checks block at the end of this conversation
+After successfull deployment, the benchmarking metrics can be viewed at :
+- [promethues-meta](%s/prometheus-meta) - label **{"namespace" : "prombench-%s"}**
+- [grafana](%s/grafana) - template-variable **"pr-number" : %s**
 
 To cancel the benchmark process comment **/benchmark cancel** .`
 
 		var resp string
 		if benchmarkOption == "release" {
-			resp = fmt.Sprintf(commentTemplate, fmt.Sprint("release-", releaseVersion))
+			resp = fmt.Sprintf(commentTemplate, fmt.Sprint("release-", releaseVersion), ingress_ip, number, ingress_ip, number)
 			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
 
 			err := triggerBenchmarkJob(c, ic, startBenchmarkJobName, []string{cancelBenchmarkJobName}, "master", "quay.io/prometheus/prometheus:master", strings.Replace(releaseVersion, ".", "-", -1), fmt.Sprintf("quay.io/prometheus/prometheus:%s", releaseVersion))
@@ -225,7 +229,7 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 				return fmt.Errorf("Failed to create prowjob to start-benchmark %v.", err)
 			}
 		} else {
-			resp = fmt.Sprintf(commentTemplate, fmt.Sprintf("pr-%d", number))
+			resp = fmt.Sprintf(commentTemplate, fmt.Sprintf("pr-%d", number), ingress_ip, number, ingress_ip, number)
 			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
 
 			err := startPRBenchmarkJob(c, ic)
@@ -501,42 +505,3 @@ func kubeEnv(environment map[string]string) []v1.EnvVar {
 
 	return kubeEnvironment
 }
-
-/*
-type ghLabelClient interface {
-	RemoveLabel(owner, repo string, number int, label string) error
-	CreateComment(owner, repo string, number int, comment string) error
-}
-
-func handlePullRequest(ghc ghLabelClient, pe github.PullRequestEvent, log *logrus.Entry) error {
-	if pe.PullRequest.Merged {
-		return nil
-	}
-
-	if pe.Action != github.PullRequestActionSynchronize {
-		return nil
-	}
-
-	// Don't bother checking if it has the label...it's a race, and we'll have
-	// to handle failure due to not being labeled anyway.
-	org := pe.PullRequest.Base.Repo.Owner.Login
-	repo := pe.PullRequest.Base.Repo.Name
-	number := pe.PullRequest.Number
-
-	var labelNotFound bool
-	if err := ghc.RemoveLabel(org, repo, number, benchmarkLabel); err != nil {
-		if _, labelNotFound = err.(*github.LabelNotFound); !labelNotFound {
-			return fmt.Errorf("failed removing benchmark label: %v", err)
-		}
-
-		// If the error is indeed *github.LabelNotFound, consider it a success.
-	}
-	// Creates a comment to inform participants that benchmark label is removed due to new
-	// pull request changes.
-	if !labelNotFound {
-		log.Infof("Create a benchmark removed notification to %s/%s#%d  with a message: %s", org, repo, number, removeBenchmarkLabelNoti)
-		return ghc.CreateComment(org, repo, number, removeBenchmarkLabelNoti)
-	}
-	return nil
-}
-*/

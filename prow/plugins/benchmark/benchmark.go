@@ -213,8 +213,8 @@ The two prometheus versions that will be compared are _**master**_ and _**%s**_
 The logs can be viewed at the links provided in the GitHub check blocks at the end of this conversation
 
 After successfull deployment, the benchmarking metrics can be viewed at :
-- [promethues-meta](%s/prometheus-meta) - label **{"namespace" : "prombench-%s"}**
-- [grafana](%s/grafana) - template-variable **"pr-number" : %s**
+- [promethues-meta](%s/prometheus-meta) - label **{"namespace" : "prombench-%d"}**
+- [grafana](%s/grafana) - template-variable **"pr-number" : %d**
 
 To cancel the benchmark process comment **/benchmark cancel** .`
 

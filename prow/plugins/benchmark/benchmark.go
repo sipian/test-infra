@@ -226,6 +226,9 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 			err := triggerBenchmarkJob(c, ic, startBenchmarkJobName, []string{cancelBenchmarkJobName}, "master", "quay.io/prometheus/prometheus:master", strings.Replace(releaseVersion, ".", "-", -1), fmt.Sprintf("quay.io/prometheus/prometheus:%s", releaseVersion))
 			if err != nil {
 				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench failed: %v", err)))
+				if lblerr := c.GitHubClient.RemoveLabel(org, repo, number, benchmarkLabel); lblerr != nil {
+					c.Logger.Infof("Error in removing benchmark label while starting benchmarking %v.", lblerr)
+				}
 				return fmt.Errorf("Failed to create prowjob to start-benchmark %v.", err)
 			}
 		} else {
@@ -235,6 +238,9 @@ To cancel the benchmark process comment **/benchmark cancel** .`
 			err := startPRBenchmarkJob(c, ic)
 			if err != nil {
 				c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Creation of prombench cluster failed: %v", err)))
+				if lblerr := c.GitHubClient.RemoveLabel(org, repo, number, benchmarkLabel); lblerr != nil {
+					c.Logger.Infof("Error in removing benchmark label while starting benchmarking %v.", lblerr)
+				}
 				return fmt.Errorf("Failed to create prowjob to build-pr-image and start-benchmark %v.", err)
 			}
 		}
@@ -411,7 +417,7 @@ func waitForOtherBenchmarkJobToEnd(c client, ic github.IssueCommentEvent, jobNam
 	repo := ic.Repo.Name
 	number := ic.Issue.Number
 
-	defer c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel) //remove label to not block future jobs
+	defer c.GitHubClient.RemoveLabel(org, repo, number, benchmarkPendingLabel) //remove label irrespective of function status to not block future jobs
 
 	for _, job := range jobName {
 

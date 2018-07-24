@@ -27,7 +27,6 @@ import (
 	"k8s.io/test-infra/prow/github"
 	"k8s.io/test-infra/prow/kube"
 	"k8s.io/test-infra/prow/pjutil"
-	"k8s.io/test-infra/prow/plugins"
 )
 
 const (
@@ -229,7 +228,7 @@ func createComment(reportTemplate *template.Template, pj kube.ProwJob, entries [
 		}
 	}
 	lines := []string{
-		fmt.Sprintf("@%s: The following test%s **failed**, say `/retest` to rerun them all:", pj.Spec.Refs.Pulls[0].Author, plural),
+		fmt.Sprintf("@%s: The following test%s **failed**.", pj.Spec.Refs.Pulls[0].Author, plural),
 		"",
 		"Test name | Commit | Details | Rerun command",
 		"--- | --- | --- | ---",
@@ -238,13 +237,13 @@ func createComment(reportTemplate *template.Template, pj kube.ProwJob, entries [
 	if reportTemplate != nil {
 		lines = append(lines, "", b.String())
 	}
-	lines = append(lines, []string{
-		"",
-		"<details>",
-		"",
-		plugins.AboutThisBot,
-		"</details>",
-		commentTag,
-	}...)
+	// lines = append(lines, []string{
+	// 	"",
+	// 	"<details>",
+	// 	"",
+	// 	plugins.AboutThisBot,
+	// 	"</details>",
+	// 	commentTag,
+	// }...)
 	return strings.Join(lines, "\n"), nil
 }

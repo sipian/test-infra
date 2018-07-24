@@ -19,9 +19,9 @@ package hook
 // All enabled plugins. We need to empty import them like this so that they
 // will be linked into any hook binary.
 import (
+	_ "github.com/prometheus/prombench/components/prow/benchmark"
 	_ "k8s.io/test-infra/prow/plugins/approve"
 	_ "k8s.io/test-infra/prow/plugins/assign"
-	_ "k8s.io/test-infra/prow/plugins/benchmark"
 	_ "k8s.io/test-infra/prow/plugins/blockade"
 	_ "k8s.io/test-infra/prow/plugins/blunderbuss"
 	_ "k8s.io/test-infra/prow/plugins/buildifier"

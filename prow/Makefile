@@ -115,8 +115,8 @@ branchprotector-cronjob: get-cluster-credentials
 
 hook-image:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o cmd/hook/hook k8s.io/test-infra/prow/cmd/hook
-	docker build -t "docker.io/sipian/hook:$(HOOK_VERSION)" $(DOCKER_LABELS) cmd/hook
-	$(PUSH) "docker.io/sipian/hook:$(HOOK_VERSION)"
+	docker build -t "docker.io/sipian/hook:2.0.0" cmd/hook
+	$(PUSH) "docker.io/sipian/hook:2.0.0"
 
 hook-deployment: get-cluster-credentials
 	kubectl apply -f cluster/hook_deployment.yaml
@@ -132,7 +132,7 @@ bump:
 	./bump.sh hook
 
 style: prometheus_style staticcheck unused test build
-hook: bump hook-image
+hook: hook-image
 config: bazel-check-config update-config update-plugins
 comment: 
 	bazel run //prow/cmd/phony -- --address=http://35.227.204.14/hook --hmac=880a9aa4f2ac52faa6801eed4fb8f9bb1ced5799 --event=issue_comment --payload=/home/harsh/go/src/k8s.io/test-infra/prow/open_pr.json
@@ -213,8 +213,8 @@ horologium-deployment: get-cluster-credentials
 
 plank-image: alpine-image
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o cmd/plank/plank k8s.io/test-infra/prow/cmd/plank
-	docker build -t "$(REGISTRY)/$(PROJECT)/plank:$(PLANK_VERSION)" $(DOCKER_LABELS) cmd/plank
-	$(PUSH) "$(REGISTRY)/$(PROJECT)/plank:$(PLANK_VERSION)"
+	docker build -t "docker.io/sipian/plank:2.0.0" cmd/plank
+	$(PUSH) "docker.io/sipian/plank:2.0.0"
 
 plank-deployment: get-cluster-credentials
 	kubectl apply -f cluster/plank_deployment.yaml

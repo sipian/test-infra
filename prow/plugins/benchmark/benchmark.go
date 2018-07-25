@@ -130,7 +130,13 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 	org := ic.Repo.Owner.Login
 	repo := ic.Repo.Name
 	number := ic.Issue.Number
-	commentAuthor := ic.Comment.User.Login
+
+	c.Logger.Debugf("Checking if author is member to the organisation.")
+	if strings.ToLower(ic.Comment.AuthorAssociation) != github.RoleMember {
+		resp := "adding benchmark is restricted to org members."
+		c.Logger.Infof("Reply to /benchmark request with comment: \"%s\".", resp)
+		return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
+	}
 
 	// If we create an "/benchmark" comment, add benchmark if necessary.
 	// If we create a "/benchmark cancel" comment, remove benchmark if necessary.
@@ -143,18 +149,6 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 		wantBenchmark = false
 	} else {
 		return nil
-	}
-
-	c.Logger.Debugf("Checking if author is authorized.")
-	// check if comment author is authorized to start benchmarking
-	ro, err := loadRepoOwners(c.GitHubClient, ownersClient, org, repo, number)
-	if err != nil {
-		return err
-	}
-	if !loadReviewers(ro, []string{"OWNERS"}).Has(commentAuthor) {
-		resp := "adding benchmark is restricted to approvers in OWNERS files."
-		c.Logger.Infof("Reply to /benchmark request with comment: \"%s\".", resp)
-		return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
 	}
 
 	c.Logger.Debugf("Checking which version of Prometheus to benchmark.")

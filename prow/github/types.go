@@ -399,12 +399,13 @@ func (i Issue) HasLabel(labelToFind string) bool {
 
 // IssueComment represents general info about an issue comment.
 type IssueComment struct {
-	ID        int       `json:"id,omitempty"`
-	Body      string    `json:"body"`
-	User      User      `json:"user,omitempty"`
-	HTMLURL   string    `json:"html_url,omitempty"`
-	CreatedAt time.Time `json:"created_at,omitempty"`
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	ID                int       `json:"id,omitempty"`
+	Body              string    `json:"body"`
+	User              User      `json:"user,omitempty"`
+	HTMLURL           string    `json:"html_url,omitempty"`
+	CreatedAt         time.Time `json:"created_at,omitempty"`
+	UpdatedAt         time.Time `json:"updated_at,omitempty"`
+	AuthorAssociation string    `json:"author_association,omitempty"`
 }
 
 // StatusEvent fires whenever a git commit changes.

@@ -120,8 +120,6 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 	repo := ic.Repo.Name
 	number := ic.Issue.Number
 
-	// If we create an "/benchmark" comment, add benchmark if necessary.
-	// If we create a "/benchmark cancel" comment, remove benchmark if necessary.
 	c.Logger.Debugf("Checking benchmark trigger keywords to decide deploy or clean")
 	wantBenchmark := false
 	if benchmarkRe.MatchString(ic.Comment.Body) {
@@ -205,6 +203,8 @@ To stop the benchmark process comment **/benchmark cancel** .`, number, releaseV
 		if !hasBenchmarkLabel {
 			return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, "Looks like benchmarking is not going on for this PR.<br/> You can start benchmarking by commenting `/benchmark master or /benchmark <RELEASE_NUMBER>(ex:2.3.0-rc.1 | Default: master)` :smiley:"))
 		}
+		///benchmark cancel does not require {{ .RELEASE }} template because just prombench namespace & cluster-role-binding need to be deleted to clean deployment
+		//That's why "temp-release" is given as releaseVersion
 		err := triggerBenchmarkJob(c, ic, cancelBenchmarkJobName, startBenchmarkJobName, "temp-release", fmt.Sprintf("pr-%d", number))
 		if err != nil {
 			c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, fmt.Sprintf("Deletion of prombench failed: %v", err)))
@@ -219,6 +219,7 @@ To stop the benchmark process comment **/benchmark cancel** .`, number, releaseV
 //This adds appropriate args in the pod spec
 func triggerBenchmarkJob(c client, ic github.IssueCommentEvent, jobName string, otherJobName string, releaseVersion string, prVersion string) error {
 
+	//otherJobName is the job for which we need to wait before starting prowjob for jobname
 	err := waitForOtherBenchmarkJobToEnd(c, ic, otherJobName, jobName)
 	if err != nil {
 		return err
@@ -256,7 +257,7 @@ func triggerBenchmarkJob(c client, ic github.IssueCommentEvent, jobName string, 
 	var benchmark config.Presubmit
 	for _, job := range c.Config.Presubmits[pr.Base.Repo.FullName] {
 		if job.Name == jobName {
-			c.Logger.Debugf("Adding args to %s prowjob", jobName)
+			c.Logger.Debugf("Adding args %s , %s to %s prowjob", releaseVersion, jobName, strconv.Itoa(number))
 
 			job.Spec.Containers[0].Args = append(job.Spec.Containers[0].Args, fmt.Sprintf("%s=%s", prowJobRelease, releaseVersion))
 			job.Spec.Containers[0].Args = append(job.Spec.Containers[0].Args, fmt.Sprintf("%s=%s", prowJobPRNumber, strconv.Itoa(number)))
@@ -296,7 +297,7 @@ func waitForOtherBenchmarkJobToEnd(c client, ic github.IssueCommentEvent, waitFo
 	pendingJobName := ""
 	prNumberArg := fmt.Sprintf("%s=%s", prowJobPRNumber, strconv.Itoa(number))
 ProwJobLoop:
-	// check if other job is in already running on this PR
+	// check if other pending/triggered job is already running on this PR by comparing arg PR_NUMBER
 	for _, pj := range pjs {
 		if pj.Status.State == kube.TriggeredState || pj.Status.State == kube.PendingState {
 			if pj.Spec.Job == waitForJob {

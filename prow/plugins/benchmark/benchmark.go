@@ -18,7 +18,6 @@ package benchmark
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -46,7 +45,7 @@ var (
 	benchmarkPendingLabel = "pending-benchmark-job"
 	benchmarkRe           = regexp.MustCompile(`(?mi)^/benchmark\s*(master|[0-9]+\.[0-9]+\.[0-9]+\S*)?\s*$`)
 	benchmarkCancelRe     = regexp.MustCompile(`(?mi)^/benchmark\s+cancel\s*$`)
-	ingress_ip            = fmt.Sprintf("http://%s", os.Getenv("PROMBENCH_INGRESS_IP"))
+	prombenchURL          = "http://prombench.prometheus.io"
 )
 
 func init() {
@@ -62,8 +61,8 @@ func helpProvider(config *plugins.Configuration, enabledRepos []string) (*plugin
 		Usage:       "/benchmark master or /benchmark <RELEASE_NUMBER>(ex:2.3.0-rc.1 | Default: master)",
 		Description: "Starts prometheus benchmarking tool. With `release` current master will be compared with previous release. With `pr`, PR will be compared with current master.",
 		Featured:    true,
-		WhoCanUse:   "Members whose Github handle is present in OWNER file.",
-		Examples:    []string{"/benchmark release", "/benchmark release 2.3.0-rc.1", "/benchmark pr", "/benchmark cancel"},
+		WhoCanUse:   "Members of the same github org.",
+		Examples:    []string{"/benchmark", "/benchmark master", "/benchmark 2.3.0-rc.1", "/benchmark cancel"},
 	})
 	return pluginHelp, nil
 }
@@ -190,7 +189,7 @@ After successfull deployment, the benchmarking metrics can be viewed at :
 - [promethues-meta](%s/prometheus-meta) - label **{"namespace" : "prombench-%d"}**
 - [grafana](%s/grafana) - template-variable **"pr-number" : %d**
 
-To stop the benchmark process comment **/benchmark cancel** .`, number, releaseVersion, ingress_ip, number, ingress_ip, number)
+To stop the benchmark process comment **/benchmark cancel** .`, number, releaseVersion, prombenchURL, number, prombenchURL, number)
 
 		c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, comment))
 		err := triggerBenchmarkJob(c, ic, startBenchmarkJobName, cancelBenchmarkJobName, releaseVersion, fmt.Sprintf("pr-%d", number))

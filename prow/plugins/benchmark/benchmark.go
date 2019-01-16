@@ -130,7 +130,8 @@ func handle(c client, ownersClient repoowners.Interface, ic github.IssueCommentE
 	}
 
 	c.Logger.Debugf("Checking if author is member to the organisation.")
-	if strings.ToLower(ic.Comment.AuthorAssociation) != github.RoleMember {
+	// prombot runs /benchmark cancel for deletion-reminder
+	if strings.ToLower(ic.Comment.AuthorAssociation) != github.RoleMember && strings.ToLower(ic.Comment.User.Name) != "prombot" {
 		resp := "Benchmarking is restricted to org members."
 		c.Logger.Infof("Reply to /benchmark request with comment: \"%s\".", resp)
 		return c.GitHubClient.CreateComment(org, repo, number, plugins.FormatICResponse(ic.Comment, resp))
